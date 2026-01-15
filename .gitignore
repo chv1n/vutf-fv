@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Project specific
+output_files/
+temp_*
+debug_*.pdf
+*.csv
