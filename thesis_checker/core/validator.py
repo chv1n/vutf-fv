@@ -1,4 +1,5 @@
 import fitz
+import pymupdf.layout
 import re
 from typing import List, Optional
 from models import Issue
