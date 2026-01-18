@@ -15,8 +15,20 @@ class ResultProducer:
         self.connection = None
         self.channel = None
     
+    def _is_connected(self) -> bool:
+        """Check if connection and channel are open"""
+        return (
+            self.connection is not None 
+            and self.connection.is_open 
+            and self.channel is not None 
+            and self.channel.is_open
+        )
+    
     def connect(self):
         """Establish connection to RabbitMQ"""
+        # Close existing connection if any
+        self.close()
+        
         credentials = pika.PlainCredentials(
             config.RABBITMQ_USER,
             config.RABBITMQ_PASSWORD
@@ -25,6 +37,8 @@ class ResultProducer:
             host=config.RABBITMQ_HOST,
             port=config.RABBITMQ_PORT,
             credentials=credentials,
+            heartbeat=600,  # Keep connection alive
+            blocked_connection_timeout=300,
         )
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
@@ -41,6 +55,13 @@ class ResultProducer:
             queue=config.RESULT_QUEUE,
             routing_key=config.RESULT_QUEUE
         )
+        print("[Producer] Connected to RabbitMQ")
+    
+    def _ensure_connected(self):
+        """Ensure connection is established, reconnect if needed"""
+        if not self._is_connected():
+            print("[Producer] Connection lost, reconnecting...")
+            self.connect()
     
     def send_result(
         self,
@@ -62,8 +83,8 @@ class ResultProducer:
             result_file_name: Result file name (if completed)
             error_message: Error description (if failed)
         """
-        if not self.channel:
-            self.connect()
+        # Reconnect if channel is closed
+        self._ensure_connected()
         
         message = {
             'job_id': job_id,
@@ -75,22 +96,45 @@ class ResultProducer:
             'completed_at': datetime.utcnow().isoformat() + 'Z',
         }
         
-        self.channel.basic_publish(
-            exchange=config.EXCHANGE_NAME,
-            routing_key=config.RESULT_QUEUE,
-            body=json.dumps(message),
-            properties=pika.BasicProperties(
-                delivery_mode=2,  # Persistent
-                content_type='application/json',
+        try:
+            self.channel.basic_publish(
+                exchange=config.EXCHANGE_NAME,
+                routing_key=config.RESULT_QUEUE,
+                body=json.dumps(message),
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # Persistent
+                    content_type='application/json',
+                )
             )
-        )
-        
-        print(f"[Producer] Result sent for job {job_id}: {status}")
+            print(f"[Producer] Result sent for job {job_id}: {status}")
+        except pika.exceptions.AMQPError as e:
+            print(f"[Producer] Publish failed, retrying: {e}")
+            self.connect()
+            self.channel.basic_publish(
+                exchange=config.EXCHANGE_NAME,
+                routing_key=config.RESULT_QUEUE,
+                body=json.dumps(message),
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                    content_type='application/json',
+                )
+            )
+            print(f"[Producer] Result sent for job {job_id}: {status} (after retry)")
     
     def close(self):
         """Close connection"""
-        if self.connection and self.connection.is_open:
-            self.connection.close()
+        try:
+            if self.channel and self.channel.is_open:
+                self.channel.close()
+        except Exception:
+            pass
+        try:
+            if self.connection and self.connection.is_open:
+                self.connection.close()
+        except Exception:
+            pass
+        self.channel = None
+        self.connection = None
 
 
 # Singleton instance
