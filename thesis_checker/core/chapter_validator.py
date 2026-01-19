@@ -5,9 +5,9 @@ from config import load_config
 from core.check_font import check_font
 from core.check_indent import check_indentation_rules
 from core.check_section_sequence import check_section_rules
+from core.check_margin import check_margin_rules
 from utils import mm, to_mm
 
-# เปลี่ยนชื่อฟังก์ชัน และรับ parameter 'chapter_num' เพิ่มเข้ามา
 def validate_chapter(pdf_path: str, chapter_num: int) -> List[Issue]:
     doc = fitz.open(pdf_path)
     issues = []
@@ -35,7 +35,7 @@ def validate_chapter(pdf_path: str, chapter_num: int) -> List[Issue]:
                 for line in block["lines"]:
                     all_lines.append(line)
         
-        # 2. เรียงลำดับบรรทัด (สำคัญมาก)
+        # 2. เรียงลำดับบรรทัด
         all_lines.sort(key=lambda l: l["bbox"][1])
 
         print(f"  Validating Page {i}...")
@@ -51,6 +51,16 @@ def validate_chapter(pdf_path: str, chapter_num: int) -> List[Issue]:
             if not line_text: continue
             
             dist_mm = to_mm(l_bbox.x0 - m_left)
+
+            # ตรวจ Margin
+            if checks.get("check_margin"):
+                margin_issues = check_margin_rules(
+                        page_num=i, 
+                        bbox=line["bbox"], 
+                        margin_cfg=margin_cfg
+                )
+                issues.extend(margin_issues)
+
 
             # [Check 1] Section Sequence
             # ส่ง chapter_num ที่รับเข้ามา เข้าไปในฟังก์ชันตรวจสอบ

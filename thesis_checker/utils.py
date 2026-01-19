@@ -2,6 +2,20 @@ import re
 from typing import List, Tuple, Optional
 from config import THAI_SEQ
 
+# --- ANSI Colors & Styles for Terminal Output ---
+RED = '\033[91m'      # Error / Fail / Critical
+GREEN = '\033[92m'    # Success / Pass
+YELLOW = '\033[93m'   # Warning
+BLUE = '\033[94m'     # Info / Structure / Logic
+MAGENTA = '\033[95m'  # Title / Chapter / Special Event
+CYAN = '\033[96m'     # Debug / Path / Filename
+WHITE = '\033[97m'    # Text (Bright)
+
+# --- Text Styles ---
+BOLD = '\033[1m'      # ตัวหนา (เหมาะกับหัวข้อ)
+UNDERLINE = '\033[4m' # ขีดเส้นใต้ (เหมาะกับชื่อไฟล์หรือ Link)
+RST = '\033[0m'       # Reset (คืนค่าเดิม)
+
 def mm(v): 
     """ mm to pt """
     return v * (72 / 25.4)

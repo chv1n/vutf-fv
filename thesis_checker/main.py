@@ -6,8 +6,6 @@ from urllib.parse import quote
 from config import OUTPUT_DIR, DEFAULT_CONFIG, load_config
 from urllib.parse import quote
 
-from utils import detect_chapter_number
-
 from core.chapter1_validator import check_chapter_1
 from core.chapter2_validator import check_chapter_2
 
@@ -22,6 +20,8 @@ from core.annotator import annotate_and_save_pdf
 
 app = FastAPI()
 
+ANNOTATE = False
+
 def generate_csv(issues, summary=None):
     output = io.StringIO()
     writer = csv.writer(output)
@@ -29,19 +29,41 @@ def generate_csv(issues, summary=None):
     for i in issues: writer.writerow([i.page, i.code, i.severity, i.message, str(i.bbox)])
     return output.getvalue()
 
+# -------------------------------------------------------------------------------------------------------
 @app.post("/check_pdf")
 async def check_pdf(file: UploadFile = File(...)):
     temp_in = f"temp_{file.filename}"
     local_out = os.path.join(OUTPUT_DIR, f"debug_{file.filename}")
+    
     try:
+        # 1. Save ไฟล์ Temp
         with open(temp_in, "wb") as f: f.write(await file.read())
+        # 2. รันการตรวจสอบ
         issues = run_all_checks(temp_in)
-        annotate_and_save_pdf(temp_in, local_out, issues)
+        # 3. [เพิ่ม Logic ตรงนี้] เช็คว่ามี Critical Error (ขนาดกระดาษผิด) หรือไม่
+        # ถ้ามี PAPER_SIZE_ERR ให้ข้ามการ Annotate
+        has_critical_error = any(i.code == "PAPER_SIZE_ERR" for i in issues)
+    
+        if not has_critical_error and ANNOTATE:
+            # ถ้าไม่มี Error ร้ายแรง ค่อยวาดกรอบแดง
+            annotate_and_save_pdf(temp_in, local_out, issues)
+        else:
+            print(f"Skipping annotation for {file.filename} due to critical paper size error.")
+            
+        # 4. สร้าง CSV (ยังคงสร้าง CSV ส่งกลับไปเพื่อให้ User รู้ว่าผิดตรงไหน)
         csv_data = generate_csv(issues)
-        return StreamingResponse(io.StringIO(csv_data), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote('report.csv')}"})
-    except Exception as e: return JSONResponse(status_code=500, content={"error": str(e)})
+        
+        return StreamingResponse(
+            io.StringIO(csv_data), 
+            media_type="text/csv", 
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote('report.csv')}"}
+        )
+        
+    except Exception as e: 
+        return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
         if os.path.exists(temp_in): os.remove(temp_in)
+# -------------------------------------------------------------------------------------------------------
 
 @app.post("/check_chapter/{chapter_num}")
 async def check_specific_chapter(
