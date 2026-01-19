@@ -8,16 +8,16 @@
     "font": {
         "name": "sarabun",
         "size": 15.0,
-        "tolerance": 1.0
+        "tolerance": 1
     },
     "indent_rules": {
         "paragraph": 15.0,
-        "sub_section_num": 15.0,
+        "sub_section_num": 25.0,
         "sub_section_text_1": 25.0,
         "sub_section_text_2": 27.6,
         "bullet_point": 25.0,
         "bullet_text": 30.0,
-        "tolerance": 1.0
+        "tolerance": 2.0
     },
     "check_list": {
         "check_font": true,

@@ -4,6 +4,8 @@ from models import Issue
 from config import DEFAULT_CONFIG, DEBUG
 from utils import mm, to_mm
 
+DEBUG = True
+
 def annotate_and_save_pdf(input_path: str, output_path: str, issues: List[Issue]):
     doc = fitz.open(input_path)
     out = fitz.open()
@@ -19,29 +21,29 @@ def annotate_and_save_pdf(input_path: str, output_path: str, issues: List[Issue]
         # 1. Margin (Green)
         np.draw_rect(fitz.Rect(m_left, m_top, w - m_right, h - m_bottom), color=(0, 1, 0), width=0.5, dashes=[2, 2])
 
-        if DEBUG:
-            text_data = page.get_text("dict")
-            all_text_lines = []
+        print(f"Annotating Page {i}...")
+        text_data = page.get_text("dict")
+        all_text_lines = []
             
-            # [A] Text Boxes (Blue)
-            for block in text_data["blocks"]:
-                if "lines" in block:
-                    for line in block["lines"]:
-                        if "".join([s["text"] for s in line["spans"]]).strip():
-                            r = fitz.Rect(line["bbox"])
-                            np.draw_rect(r, color=(0, 0, 1), width=0.3)
-                            all_text_lines.append(r)
+        # [A] Text Boxes (Blue)
+        for block in text_data["blocks"]:
+            if "lines" in block:
+                for line in block["lines"]:
+                    if "".join([s["text"] for s in line["spans"]]).strip():
+                        r = fitz.Rect(line["bbox"])
+                        np.draw_rect(r, color=(0, 0, 1), width=0.3)
+                        all_text_lines.append(r)
 
-            # [B] Indentation (Cyan)
-            raw_lines = []
-            for block in text_data["blocks"]:
-                if "lines" in block:
-                    for line in block["lines"]:
-                        line_bbox = fitz.Rect(line["bbox"])
-                        if line_bbox.y1 < m_top or line_bbox.y0 > (h - m_bottom): continue
-                        valid_x0s = [s["bbox"][0] for s in line["spans"] if s["text"].strip()]
-                        if not valid_x0s: continue
-                        raw_lines.append({"y0": line_bbox.y0, "x0": min(valid_x0s), "mid_y": (line_bbox.y0 + line_bbox.y1) / 2})
+        # [B] Indentation (Cyan)
+        raw_lines = []
+        for block in text_data["blocks"]:
+            if "lines" in block:
+                for line in block["lines"]:
+                    line_bbox = fitz.Rect(line["bbox"])
+                    if line_bbox.y1 < m_top or line_bbox.y0 > (h - m_bottom): continue
+                    valid_x0s = [s["bbox"][0] for s in line["spans"] if s["text"].strip()]
+                    if not valid_x0s: continue
+                    raw_lines.append({"y0": line_bbox.y0, "x0": min(valid_x0s), "mid_y": (line_bbox.y0 + line_bbox.y1) / 2})
 
             raw_lines.sort(key=lambda x: x["y0"])
             merged_lines = []
