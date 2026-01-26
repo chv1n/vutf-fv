@@ -5,7 +5,8 @@ from typing import List
 # Import models & config
 from models import Issue
 from config import load_config
-from utils import mm, to_mm, get_next_thai
+from core.check_page_sequence import get_page_number_text
+from utils import BLUE, mm, to_mm, get_next_thai
 
 import utils as u
 
@@ -58,12 +59,19 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
     for i, page in enumerate(doc, 1):
         w, h = page.rect.width, page.rect.height
 
-        # -------------------------------------------------
-        # [NEW] อัปเดตว่าตอนนี้อยู่บทไหน
-        # -------------------------------------------------
+        #------------------get page number-----------------------------
+        # เรียกฟังก์ชันดึงเลขหน้า
+        page_num_str = get_page_number_text(page, m_top)
+        
+        # Print ออกมาดู (Debug)
+        display_text = page_num_str if page_num_str else "-"
+        print(f"Page {i}: Found Header = '{BLUE}{display_text}{RST}'")
+        #--------------------------------------------------------------
+
+        # อัปเดตว่าตอนนี้อยู่บทไหน
         current_chapter = detect_current_chapter(page, current_chapter)
         
-        # ลอง Print เช็คดูว่ามันรู้เรื่องไหม
+        # Print เช็ค
         status_msg = f"Validating Page {i}"
         if current_chapter > 0:
             status_msg += f" (In Chapter {current_chapter})"

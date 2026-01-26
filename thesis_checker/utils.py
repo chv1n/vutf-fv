@@ -24,27 +24,27 @@ def to_mm(v):
     """ pt to mm """
     return v / (72 / 25.4)
 
-def get_next_thai(char):
-    """หาตัวอักษรไทยลำดับถัดไป (เช่น ก -> ข) สำหรับตรวจลำดับหน้า"""
-    try:
-        idx = THAI_SEQ.index(char)
-        if idx + 1 < len(THAI_SEQ): 
-            return THAI_SEQ[idx + 1]
-    except (ValueError, TypeError): 
-        pass
-    return None
-
-def parse_section_number(text: str) -> Optional[List[int]]:
-    """แปลงเลขหัวข้อแบบระบบทศนิยม (เช่น 1.1, 2.3.1) เป็น List ของตัวเลข"""
-    # Regex สำหรับจับหัวข้อที่ขึ้นต้นบรรทัดและมีจุดอย่างน้อย 1 จุด
-    SECTION_PATTERN = re.compile(r"^(\d+(?:\.\d+)+)")
-    match = SECTION_PATTERN.match(text)
-    if match:
-        try: 
-            return [int(x) for x in match.group(1).split('.')]
-        except ValueError: 
-            return None
-    return None
+def get_next_page_label(current_label: str) -> str:
+    """
+    หาเลขหน้าถัดไป รองรับทั้งตัวเลข (1->2) และอักษรไทย (ก->ข)
+    """
+    current_label = current_label.strip()
+    
+    # กรณีเป็นตัวเลข (Arabic)
+    if current_label.isdigit():
+        return str(int(current_label) + 1)
+    
+    # กรณีเป็นอักษรไทย (ก-ฮ)
+    thai_chars = "กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ"
+    if current_label in thai_chars:
+        try:
+            idx = thai_chars.index(current_label)
+            if idx + 1 < len(thai_chars):
+                return thai_chars[idx + 1]
+        except ValueError:
+            pass
+            
+    return "" # ไปต่อไม่ได้ หรือ Format ไม่รู้จัก
 
 def parse_sub_section_bullet(text: str) -> Optional[int]:
     """ตรวจสอบหัวข้อย่อยแบบตัวเลขมีวงเล็บปิด (เช่น 1), 10)) และคืนค่าจำนวนหลักของตัวเลข"""
