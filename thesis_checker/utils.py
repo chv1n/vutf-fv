@@ -24,28 +24,6 @@ def to_mm(v):
     """ pt to mm """
     return v / (72 / 25.4)
 
-def get_next_page_label(current_label: str) -> str:
-    """
-    หาเลขหน้าถัดไป รองรับทั้งตัวเลข (1->2) และอักษรไทย (ก->ข)
-    """
-    current_label = current_label.strip()
-    
-    # กรณีเป็นตัวเลข (Arabic)
-    if current_label.isdigit():
-        return str(int(current_label) + 1)
-    
-    # กรณีเป็นอักษรไทย (ก-ฮ)
-    thai_chars = "กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ"
-    if current_label in thai_chars:
-        try:
-            idx = thai_chars.index(current_label)
-            if idx + 1 < len(thai_chars):
-                return thai_chars[idx + 1]
-        except ValueError:
-            pass
-            
-    return "" # ไปต่อไม่ได้ หรือ Format ไม่รู้จัก
-
 def parse_sub_section_bullet(text: str) -> Optional[int]:
     """ตรวจสอบหัวข้อย่อยแบบตัวเลขมีวงเล็บปิด (เช่น 1), 10)) และคืนค่าจำนวนหลักของตัวเลข"""
     # ค้นหารูปแบบ ตัวเลข ตามด้วยเครื่องหมายวงเล็บปิด ) ที่ต้นบรรทัด
@@ -76,3 +54,34 @@ def check_sequence_logic(prev: List[int], curr: List[int]) -> Tuple[bool, str]:
             return True, f"เลขหัวข้อกระโดดผิดปกติ (Warning): {'.'.join(map(str, prev))} -> {'.'.join(map(str, curr))}"
             
     return False, ""
+
+def parse_section_number(text: str) -> Optional[List[int]]:
+    """
+    แกะเลขหัวข้อจากข้อความ เช่น "2.1.3 ผลการทดลอง" -> [2, 1, 3]
+    คืนค่า None ถ้าขึ้นต้นบรรทัดไม่ใช่รูปแบบตัวเลข
+    """
+    if not text:
+        return None
+    
+    # 1. ดึงคำแรกสุดของบรรทัดออกมา (เพราะเลขหัวข้อต้องอยู่หน้าสุดเสมอ)
+    # เช่น "2.1.3 ผลการทดลอง" -> "2.1.3"
+    words = text.strip().split()
+    if not words:
+        return None
+    
+    first_token = words[0]
+
+    # 2. ตรวจสอบ Pattern ว่าใช่รูปแบบเลขหัวข้อหรือไม่
+    # Regex: ขึ้นต้นด้วยเลข, ตามด้วย (จุด+เลข) ซ้ำๆ, และอาจจบด้วยจุด
+    # เช่น "1", "1.1", "2.1.3", "2.1.3."
+    if not re.match(r"^\d+(\.\d+)*\.?$", first_token):
+        return None
+
+    # 3. แปลงเป็น List[int]
+    try:
+        # split('.') จะได้เช่น "2.1.3." -> ['2', '1', '3', '']
+        # ใช้ if x เพื่อกรองตัวว่าง ('') ทิ้งไป
+        numbers = [int(x) for x in first_token.split('.') if x]
+        return numbers
+    except ValueError:
+        return None

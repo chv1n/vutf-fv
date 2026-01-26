@@ -23,3 +23,21 @@ def get_page_number_text(page: fitz.Page, margin_top: float) -> str:
     clean_text = raw_text.replace('\n', '').strip()
     
     return clean_text
+
+def get_next_page_label(current_label: str) -> str:
+    current_label = current_label.strip()
+    
+    if current_label.isdigit():
+        return str(int(current_label) + 1)
+    
+    thai_chars = "กขคงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ"
+    
+    if current_label in thai_chars:
+        try:
+            idx = thai_chars.index(current_label)
+            if idx + 1 < len(thai_chars):
+                return thai_chars[idx + 1]
+        except ValueError:
+            pass
+            
+    return ""

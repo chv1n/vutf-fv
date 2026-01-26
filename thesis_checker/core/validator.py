@@ -5,8 +5,8 @@ from typing import List
 # Import models & config
 from models import Issue
 from config import load_config
-from core.check_page_sequence import get_page_number_text
-from utils import BLUE, mm, to_mm, get_next_thai
+from core.check_page_sequence import get_page_number_text, get_next_page_label
+from utils import BLUE, mm, to_mm
 
 import utils as u
 
@@ -54,19 +54,62 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
 
     print("=== Starting Full Validation (run_all_checks) ===")
 
+    # [STATE Variables]
+    current_chapter = 0
+    previous_chapter = 0
+    expected_page_str = None  # เลขหน้าที่ "ควรจะเป็น" ในรอบนี้
+
     current_chapter = 0
 
     for i, page in enumerate(doc, 1):
         w, h = page.rect.width, page.rect.height
 
-        #------------------get page number-----------------------------
+        # Update Chapter
+        previous_chapter = current_chapter
+        current_chapter = detect_current_chapter(page, current_chapter)
+
         # เรียกฟังก์ชันดึงเลขหน้า
         page_num_str = get_page_number_text(page, m_top)
+
+        is_first_page_of_chapter = False
+
+        # เช็คว่าเป็นหน้าแรกของบทหรือไม่ (เปลี่ยนจากบทอื่น มาเป็นบท 1-5)
+        is_first_page_of_chapter = (current_chapter != previous_chapter) and (1 <= current_chapter <= 9)
+
+        # เช็คว่า: ตอนนี้อยู่บท 1 แล้ว (และก่อนหน้านี้ไม่ใช่บท 1)
+        if is_first_page_of_chapter and current_chapter == 1:
+            expected_page_str = "1"
+            print(f"{YELLOW}>>> Entering Chapter 1: Resetting logical counter to '1'{RST}")
+
+        # Sync (Init) ถ้ายังไม่มีเลขในใจ แต่เจอเลขบนกระดาษ -> เริ่มนับจากเลขที่เจอ
+        if expected_page_str is None and page_num_str:
+             expected_page_str = page_num_str
+
+        expected_visible = expected_page_str  # ค่าปกติที่คาดหวังให้แสดงบนหน้า
+
+        # Override: ถ้าเป็นหน้าแรกของบท ต้องไม่แสดงเลขหน้า (คาดหวัง None)
+        if is_first_page_of_chapter:
+            expected_visible = None
         
-        # Print ออกมาดู (Debug)
+        
+        # ---------------------------------------------------------
+        # Print (Debug) - [UPDATED]
+        # ---------------------------------------------------------
         display_text = page_num_str if page_num_str else "-"
-        print(f"Page {i}: Found Header = '{BLUE}{display_text}{RST}'")
-        #--------------------------------------------------------------
+        display_expect = expected_visible if expected_visible else "-"
+        
+        # เปรียบเทียบค่า: แปลงให้เป็น format เดียวกันก่อนเทียบ (None vs None)
+        val_found = page_num_str if page_num_str else None
+        val_expect = expected_visible
+        
+        # เลือกสี: ถ้าตรง=เขียว, ไม่ตรง=แดง
+        if val_found == val_expect:
+            status_color = GREEN
+        else:
+            status_color = RED
+
+        print(f"Page {i}: Found Header = '{BLUE}{display_text}{RST}' expected_page : {status_color}{display_expect}{RST}")
+        # ---------------------------------------------------------
 
         # อัปเดตว่าตอนนี้อยู่บทไหน
         current_chapter = detect_current_chapter(page, current_chapter)
@@ -82,19 +125,42 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
         
         # --- A. Page Sequence ---
         if checks.get("check_page_seq"):
-            header_zone = fitz.Rect(w * 0.7, 0, w, m_top * 0.9)
-            raw_header = page.get_text("text", clip=header_zone).strip()
-            match_pg = re.search(r"(\d+|[ก-ฮ]+)", raw_header)
-            current_page_label = match_pg.group(1) if match_pg else None
+            # แปลง Empty String เป็น None เพื่อให้เทียบง่ายๆ
+            found_val = page_num_str if page_num_str else None
+            
+            # กรณีที่ 1: คาดหวังว่าจะ "ซ่อนเลข" (Expected Visible = None)
+            if expected_visible is None:
+                if found_val is not None:
+                    # แต่ดันเจอเลขโผล่มา!
+                    msg = f"รูปแบบหน้าผิด: หน้าแรกของบทต้องไม่แสดงเลขหน้า (เจอ '{found_val}')"
+                    issues.append(Issue(i, "PAGE_SEQ_HIDDEN_ERR", "error", msg, bbox=[0,0,w,50]))
 
-            if current_page_label:
-                if expected_page_str and current_page_label != expected_page_str:
-                    issues.append(Issue(i, "PAGE_SEQ_ERROR", "error", f"ลำดับหน้าผิด: ควรเป็น {expected_page_str}", bbox=header_zone))
+            # กรณีที่ 2: คาดหวังว่าจะ "มีเลข" (Expected Visible = "1", "2", ...)
+            else:
+                if found_val is None:
+                    # หาเลขไม่เจอ
+                    msg = f"ไม่พบเลขหน้า: ควรแสดงเลข '{expected_visible}'"
+                    issues.append(Issue(i, "PAGE_SEQ_MISSING", "error", msg, bbox=[0,0,w,50]))
                 
-                if current_page_label.isdigit():
-                    expected_page_str = str(int(current_page_label) + 1)
-                else:
-                    expected_page_str = get_next_thai(current_page_label)
+                elif found_val != expected_visible:
+                    # เลขผิด (เช่น เจอ 5 แต่ควรเป็น 6)
+                    msg = f"ลำดับหน้าผิด: เจอ '{found_val}' แต่ควรเป็น '{expected_visible}'"
+                    issues.append(Issue(
+                        i, "PAGE_SEQ_ERROR", "error", msg, 
+                        bbox=fitz.Rect(w * 0.7, 0, w, m_top * 0.9)
+                    ))
+                    # Recovery: ผิดแล้วให้เชื่อตามเลขจริงไปเลย
+                    expected_page_str = found_val
+
+        # ---------------------------------------------------------
+        # Calculate Next Page
+        # ---------------------------------------------------------
+        # เพื่อให้ State การนับหน้าทำงานต่อเนื่องเสมอ ไม่ว่าจะเปิดปิดการตรวจ
+        if expected_page_str:
+            expected_page_str = get_next_page_label(expected_page_str)
+        elif page_num_str:
+            # กรณีที่ expected หลุดไปแล้ว แต่กลับมาเจอเลขหน้าใหม่ ก็ให้เริ่มนับต่อจากตรงนี้
+            expected_page_str = get_next_page_label(page_num_str)
 
         # --- B. Prepare Lines ---
         text_data = page.get_text("dict")

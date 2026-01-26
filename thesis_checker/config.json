@@ -26,5 +26,19 @@
         "check_page_seq": false,
         "check_indentation": true,
         "check_spacing": false
-    }
+    },
+    "ignored_units": [
+    "m", "cm", "mm", "km", "nm",
+    "kg", "g", "mg",
+    "A", "mA", "kA",
+    "V", "kV", "mV",
+    "W", "kW", "MW",
+    "Hz", "kHz", "MHz", "GHz",
+    "J", "MJ", "kJ",
+    "°C", "K", "F",
+    "N", "kN",
+    "Pa", "kPa", "MPa",
+    "bar", "atm",
+    "dB", "rpm"
+  ]
 }
