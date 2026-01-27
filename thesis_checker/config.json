@@ -23,7 +23,7 @@
         "check_font": true,
         "check_margin": true,
         "check_section_seq": true,
-        "check_page_seq": false,
+        "check_page_seq": true,
         "check_indentation": true,
         "check_spacing": false
     },

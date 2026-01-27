@@ -18,6 +18,7 @@ def check_section_rules(
     curr_sec = parse_section_number(line_text) 
     
     if curr_sec:
+        
         # =========================================================
         # Noise Filters
         # =========================================================

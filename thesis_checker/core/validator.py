@@ -131,7 +131,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             # กรณีที่ 1: คาดหวังว่าจะ "ซ่อนเลข" (Expected Visible = None)
             if expected_visible is None:
                 if found_val is not None:
-                    # แต่ดันเจอเลขโผล่มา!
+                    # แต่เจอเลข
                     msg = f"รูปแบบหน้าผิด: หน้าแรกของบทต้องไม่แสดงเลขหน้า (เจอ '{found_val}')"
                     issues.append(Issue(i, "PAGE_SEQ_HIDDEN_ERR", "error", msg, bbox=[0,0,w,50]))
 
