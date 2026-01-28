@@ -70,6 +70,7 @@ class ResultProducer:
         status: str,
         result_file_url: str = None,
         result_file_name: str = None,
+        result_file_size: int = None,
         error_message: str = None
     ):
         """
@@ -92,6 +93,7 @@ class ResultProducer:
             'status': status,
             'result_file_url': result_file_url,
             'result_file_name': result_file_name,
+            'result_file_size': result_file_size,
             'error_message': error_message,
             'completed_at': datetime.utcnow().isoformat() + 'Z',
         }

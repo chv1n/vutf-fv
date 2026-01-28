@@ -70,6 +70,7 @@ class JobConsumer:
         
         job_id = job.get('job_id')
         submission_id = job.get('submission_id')
+        attempt = job.get('attempt', job_id)
         file_url = job.get('file_url')
         file_name = job.get('file_name', 'document.pdf')
         job_config = job.get('config', {})
@@ -124,20 +125,22 @@ class JobConsumer:
                 output_path = os.path.join(temp_dir, output_filename)
                 annotate_and_save_pdf(input_path, output_path, issues)
                 
+                file_size = os.path.getsize(output_path)
+                
                 # 5. Upload result to S3
-                s3_key = s3_client.generate_result_key(file_name, submission_id)
+                s3_key = s3_client.generate_result_key(output_filename, submission_id, attempt)
                 print(f"[Consumer] Uploading result to S3: {s3_key}")
                 result_url = s3_client.upload_file(output_path, s3_key)
                 
                 print(f"[Consumer] Job {job_id} completed successfully with {len(issues)} issues found")
-                return True, result_url, output_filename, None
+                return True, result_url, output_filename, file_size, None
                 
             except Exception as e:
                 error_msg = str(e)
                 print(f"[Consumer] Job {job_id} failed: {error_msg}")
                 import traceback
                 traceback.print_exc()
-                return False, None, None, error_msg
+                return False, None, None, None, error_msg
     
     def on_message(self, channel, method, properties, body):
         """Callback for processing incoming messages"""
@@ -149,7 +152,7 @@ class JobConsumer:
             print(f"[Consumer] Received job: {job_id}")
             
             # Process the job
-            success, result_url, result_name, error = self.process_job(job)
+            success, result_url, result_name, file_size, error = self.process_job(job)
             
             # Send result back to API
             result_producer.send_result(
@@ -158,6 +161,7 @@ class JobConsumer:
                 status='completed' if success else 'failed',
                 result_file_url=result_url,
                 result_file_name=result_name,
+                result_file_size=file_size,
                 error_message=error,
             )
             
