@@ -20,8 +20,7 @@ def check_chapter_2(pdf_path: str) -> List[Issue]:
     CFG = load_config()
     
     # Config
-    checks = CFG.get("check_list", {})  # แก้ Key ให้ตรงกับ JSON (check_list ตัวเล็ก)
-    # หมายเหตุ: ใน JSON คุณใช้ "check_list" หรือ "CHECK_LIST"? เช็คให้ตรงกันนะครับ
+    checks = CFG.get("check_list", {})
     
     rules = CFG.get("indent_rules", {})
     font_cfg = CFG.get("font", {})

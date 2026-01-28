@@ -6,7 +6,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 # 3.ติดตั้ง dependency ใหม่
-pip install fastapi uvicorn pymupdf python-multipart pymupdf-layout
+pip install fastapi uvicorn pymupdf python-multipart pymupdf-layout tqdm
 
 # 4.run
 python main.py
@@ -27,7 +27,7 @@ python -m venv venv
 .\venv\Scripts\activate
 
 # 3.ติดตั้ง dependency ใหม่
-pip install fastapi uvicorn pymupdf python-multipart pymupdf-layout
+pip install fastapi uvicorn pymupdf python-multipart pymupdf-layout tqdm
 
 # 4.run
 python main.py
