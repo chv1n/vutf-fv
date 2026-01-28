@@ -4,6 +4,7 @@ S3 client for downloading and uploading files
 """
 import os
 import boto3
+import mimetypes
 from botocore.config import Config
 from .config import config
 
@@ -52,12 +53,17 @@ class S3Client:
         Returns:
             S3 URL of uploaded file
         """
+        
+        content_type, _ = mimetypes.guess_type(local_path)
+        if content_type is None:
+            content_type = 'application/octet-stream'
+            
         # Upload file
         self.s3.upload_file(
             local_path,
             self.bucket,
             s3_key,
-            ExtraArgs={'ContentType': 'application/pdf'}
+            ExtraArgs={'ContentType': content_type}
         )
         
         # Generate presigned URL (valid for 7 days)
@@ -69,10 +75,19 @@ class S3Client:
         
         return url
     
-    def generate_result_key(self, original_filename: str, submission_id: int) -> str:
-        """Generate S3 key for result file"""
-        base_name = os.path.splitext(original_filename)[0]
-        return f"reports/{submission_id}/result_{base_name}.pdf"
+    def generate_result_key(self, filename: str, submission_id: int, sub_folder=None) -> str:
+        """
+        Generate S3 key for result file
+        Args:
+            filename: The final filename (e.g., result_doc.pdf)
+            submission_id: Submission ID
+            sub_folder ในที่นี้จะเป็นเลขครั้งที่ (เช่น 1, 2, 3) ที่ส่งมาจาก Consumer
+        """
+        # Logic การสร้าง Path
+        if sub_folder:
+            return f"reports/{submission_id}/{sub_folder}/{filename}"
+        else:
+            return f"reports/{submission_id}/{filename}"
 
 
 # Singleton instance
