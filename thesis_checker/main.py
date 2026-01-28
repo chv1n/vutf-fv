@@ -65,6 +65,7 @@ async def check_pdf(file: UploadFile = File(...)):
         csv_data = generate_csv(issues)
         
         # [ADDED] 5. บันทึกไฟล์ CSV ลงเครื่อง Server
+        
         save_csv_to_disk(csv_data, file.filename, prefix="report_full")
         
         # 6. ส่งกลับ Client
