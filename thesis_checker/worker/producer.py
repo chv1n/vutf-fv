@@ -69,6 +69,7 @@ class ResultProducer:
         submission_id: int,
         status: str,
         result_file_url: str = None,
+        result_csv_url: str = None,
         result_file_name: str = None,
         result_file_size: int = None,
         error_message: str = None
@@ -81,6 +82,7 @@ class ResultProducer:
             submission_id: Submission ID from database
             status: 'completed' or 'failed'
             result_file_url: S3 URL of result PDF (if completed)
+            result_csv_url: S3 URL of result CSV (if completed)
             result_file_name: Result file name (if completed)
             error_message: Error description (if failed)
         """
@@ -92,6 +94,7 @@ class ResultProducer:
             'submission_id': submission_id,
             'status': status,
             'result_file_url': result_file_url,
+            'result_csv_url': result_csv_url,
             'result_file_name': result_file_name,
             'result_file_size': result_file_size,
             'error_message': error_message,
