@@ -6,9 +6,24 @@ import json
 import os
 import tempfile
 import pika
+import io
+import csv
+from models import Issue
+from typing import List
+
 from .config import config
 from .s3_client import s3_client
 from .producer import result_producer
+
+
+def generate_csv(issues: List[Issue]) -> str:
+    """Generates CSV data from a list of issues."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Page", "Code", "Severity", "Message", "BBox"])
+    for i in issues:
+        writer.writerow([i.page, i.code, i.severity, i.message, str(i.bbox)])
+    return output.getvalue()
 
 
 class JobConsumer:
@@ -56,7 +71,7 @@ class JobConsumer:
             job: Job message from queue
             
         Returns:
-            Tuple of (success: bool, result_url: str, result_name: str, error: str)
+            Tuple of (success: bool, pdf_url: str, csv_url: str, result_name: str, file_size: int, error: str)
         """
         # Import here to avoid circular imports and ensure proper path
         import sys
@@ -127,20 +142,34 @@ class JobConsumer:
                 
                 file_size = os.path.getsize(output_path)
                 
-                # 5. Upload result to S3
-                s3_key = s3_client.generate_result_key(output_filename, submission_id, attempt)
-                print(f"[Consumer] Uploading result to S3: {s3_key}")
-                result_url = s3_client.upload_file(output_path, s3_key)
-                
+                # 5. Upload result PDF to S3
+                pdf_s3_key = s3_client.generate_result_key(output_filename, submission_id, attempt)
+                print(f"[Consumer] Uploading result PDF to S3: {pdf_s3_key}")
+                pdf_url = s3_client.upload_file(output_path, pdf_s3_key)
+
+                # 6. Generate and Upload CSV report
+                csv_url = None
+                if issues:
+                    csv_filename = f"report_{base_name}.csv"
+                    csv_path = os.path.join(temp_dir, csv_filename)
+                    
+                    csv_data = generate_csv(issues)
+                    with open(csv_path, "w", encoding="utf-8-sig") as f:
+                        f.write(csv_data)
+                    
+                    csv_s3_key = s3_client.generate_result_key(csv_filename, submission_id, attempt)
+                    print(f"[Consumer] Uploading CSV report to S3: {csv_s3_key}")
+                    csv_url = s3_client.upload_file(csv_path, csv_s3_key)
+
                 print(f"[Consumer] Job {job_id} completed successfully with {len(issues)} issues found")
-                return True, result_url, output_filename, file_size, None
+                return True, pdf_url, csv_url, output_filename, file_size, None
                 
             except Exception as e:
                 error_msg = str(e)
                 print(f"[Consumer] Job {job_id} failed: {error_msg}")
                 import traceback
                 traceback.print_exc()
-                return False, None, None, None, error_msg
+                return False, None, None, None, None, error_msg
     
     def on_message(self, channel, method, properties, body):
         """Callback for processing incoming messages"""
@@ -152,14 +181,15 @@ class JobConsumer:
             print(f"[Consumer] Received job: {job_id}")
             
             # Process the job
-            success, result_url, result_name, file_size, error = self.process_job(job)
+            success, pdf_url, csv_url, result_name, file_size, error = self.process_job(job)
             
             # Send result back to API
             result_producer.send_result(
                 job_id=job_id,
                 submission_id=submission_id,
                 status='completed' if success else 'failed',
-                result_file_url=result_url,
+                result_file_url=pdf_url,
+                result_csv_url=csv_url,
                 result_file_name=result_name,
                 result_file_size=file_size,
                 error_message=error,
