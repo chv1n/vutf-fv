@@ -117,6 +117,14 @@ def annotate_and_save_pdf(input_path: str, output_path: str, issues: List[Issue]
             if issue.bbox:
                 r = fitz.Rect(issue.bbox)
                 
+                # ============================================================
+                # เช็คว่ากรอบมีความกว้าง/สูง ผิดปกติหรือไม่ (เช่น ติดลบ หรือ เป็น 0)
+                # ============================================================
+                if r.is_empty or r.is_infinite or r.width <= 0 or r.height <= 0:
+                    # print(f"[Annotator] ⚠️ Skipping invalid BBox...")
+                    continue
+                # ============================================================
+                
                 # 1. กรอบแดง
                 annot = page.add_rect_annot(r)
                 annot.set_border(width=2.0)
