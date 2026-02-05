@@ -84,7 +84,7 @@ def check_font(page_num: int, spans: list, font_cfg: dict) -> List[Issue]:
             ))
         
         # 2. ตรวจขนาดฟอนต์
-        # เช็คเฉพาะฟอนต์ขนาดปกติ (10-20pt) เพื่อไม่ให้ไปกวนพวก Header ใหญ่ๆ
+        # เช็คเฉพาะฟอนต์ขนาดปกติ (10-20pt)
         if 10.0 <= span_size <= 20.0:
             if abs(span_size - font_size_target) > font_tol:
                 found_issues.append(Issue(

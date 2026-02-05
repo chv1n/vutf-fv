@@ -16,7 +16,7 @@ from core.check_font import check_font
 from core.check_indent import check_indentation_rules
 from core.check_paper_size import check_paper_size
 
-# [NEW] Import Visual Checks
+# Import Visual Checks
 from core.check_img_table import get_visual_areas, is_inside_visual, check_visual_spacing
 
 from core.detect_chapter import detect_current_chapter
@@ -64,15 +64,11 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
     for i, page in enumerate(doc, 1):
         w, h = page.rect.width, page.rect.height
 
-        # =========================================================
-        # [NEW 1] Detect Tables & Images (Visual Areas)
-        # =========================================================
+        # Detect Tables & Images (Visual Areas)
         # หาพื้นที่ตารางและรูปภาพทั้งหมดในหน้านี้เตรียมไว้
         visual_rects = get_visual_areas(page)
 
-        # =========================================================
-        # [NEW 2] Check Spacing Before Tables/Images
-        # =========================================================
+        # Check Spacing Before Tables/Images
         # ตรวจว่ามีการเว้นบรรทัดก่อนตาราง/รูปภาพหรือไม่ (Default 8.0mm)
         if checks.get("check_spacing", True): 
              spacing_issues = check_visual_spacing(i, page, visual_rects, min_gap_mm=8.0)
@@ -99,9 +95,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
         if is_first_page_of_chapter:
             expected_visible = None
         
-        # ---------------------------------------------------------
         # Print (Debug)
-        # ---------------------------------------------------------
         display_text = page_num_str if page_num_str else "-"
         display_expect = expected_visible if expected_visible else "-"
         
@@ -110,7 +104,6 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
         
         status_color = GREEN if val_found == val_expect else RED
         print(f"Page {i}: Found Header = '{BLUE}{display_text}{RST}' expected_page : {status_color}{display_expect}{RST}")
-        # ---------------------------------------------------------
 
         # Re-detect chapter (เผื่อ header เปลี่ยนในหน้านั้น)
         current_chapter = detect_current_chapter(page, current_chapter)
@@ -164,13 +157,10 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             # Filter Header/Footer
             if l_bbox.y1 < m_top or l_bbox.y0 > (h - m_bottom): continue
 
-            # =========================================================
-            # [NEW 3] Visual Content Filtering
-            # =========================================================
+            # Visual Content Filtering
             # ถ้าบรรทัดนี้อยู่ในพื้นที่ตารางหรือรูปภาพ -> ข้ามการตรวจทันที
             if is_inside_visual(line["bbox"], visual_rects):
                 continue
-            # =========================================================
 
             spans = line["spans"]
             line_text = "".join([s["text"] for s in spans]).strip()

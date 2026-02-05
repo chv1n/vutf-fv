@@ -62,7 +62,6 @@ def detect_current_chapter(page: fitz.Page, current_chapter_num: int) -> int:
     
     # ภาคผนวก ก
     elif "ภาคผนวก ก" in header_text or "ภาคผนวก ก" in center_text:
-        # เช็คเพิ่ม: ต้องไม่ใช่บรรทัดที่มีจุดไข่ปลา (................) แบบในสารบัญ
         detected_chapter = 7
         
     # ภาคผนวก ข
