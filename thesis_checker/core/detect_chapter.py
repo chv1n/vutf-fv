@@ -24,15 +24,11 @@ def detect_current_chapter(page: fitz.Page, current_chapter_num: int) -> int:
     page_num_rect = fitz.Rect(w * 0.7, 0, w, h * 0.1) 
     page_num_text = page.get_text("text", clip=page_num_rect).strip()
 
-    # =========================================================
     # [FILTER 1] กรองหน้าสารบัญ (Keywords)
-    # =========================================================
     if "สารบัญ" in header_text:
         return current_chapter_num
 
-    # =========================================================
     # [FILTER 2] กรองเลขหน้าไทย
-    # =========================================================
     # ถ้าเจอก ไก่ - ฮ นกฮูก ในโซนเลขหน้า -> เป็นส่วนหน้าแน่นอน (Pre-content)
     # ห้ามเปลี่ยนไปเป็นบทอื่น (เช่น ภาคผนวก) แม้จะเจอ keyword ก็ตาม
     # Regex: เช็คว่าเป็นตัวอักษรไทย 1-3 ตัว (เผื่อ พ, ภ, ฦ) ไม่มีตัวเลขปน
@@ -48,9 +44,7 @@ def detect_current_chapter(page: fitz.Page, current_chapter_num: int) -> int:
 
     detected_chapter = current_chapter_num
 
-    # =========================================================
     # Logic 1: ตรวจหา "บทที่ 1-5" (เช็ค Header)
-    # =========================================================
     match_chapter = re.search(r"บทที่\s*(\d+)", header_text)
     if match_chapter:
         try:
@@ -60,10 +54,8 @@ def detect_current_chapter(page: fitz.Page, current_chapter_num: int) -> int:
         except ValueError:
             pass
 
-    # =========================================================
-    # Logic 2: ตรวจหา ส่วนท้ายเล่ม (Keywords)
-    # =========================================================
-    
+
+    # Logic 2: ตรวจหา ส่วนท้ายเล่ม (Keywords)    
     # บรรณานุกรม
     elif "บรรณานุกรม" in header_text:
         detected_chapter = 6
@@ -81,9 +73,7 @@ def detect_current_chapter(page: fitz.Page, current_chapter_num: int) -> int:
     elif "ประวัติผู้จัดทำ" in header_text or "ประวัติผู้จัดทำ" in center_text:
         detected_chapter = 9
 
-    # =========================================================
     # Print Debug (เฉพาะตอนเปลี่ยนบท)
-    # =========================================================
     if detected_chapter != current_chapter_num:
         msg = ""
         if 1 <= detected_chapter <= 5:

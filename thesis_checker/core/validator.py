@@ -16,6 +16,9 @@ from core.check_font import check_font
 from core.check_indent import check_indentation_rules
 from core.check_paper_size import check_paper_size
 
+# [NEW] Import Visual Checks
+from core.check_img_table import get_visual_areas, is_inside_visual, check_visual_spacing
+
 from core.detect_chapter import detect_current_chapter
 
 RED = '\033[91m'
@@ -30,7 +33,6 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
     issues = []
     
     # Pre-check: Paper Size (A4)
-    # ถ้าขนาดกระดาษไม่ใช่ A4 ให้หยุดตรวจทันที
     paper_issues = check_paper_size(doc)
     if paper_issues and ENFORCE_A4_SIZE:
         print(f"{RED}Pre-check Failed: Found {len(paper_issues)} paper size errors{RST}")
@@ -59,10 +61,22 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
     previous_chapter = 0
     expected_page_str = None  # เลขหน้าที่ "ควรจะเป็น" ในรอบนี้
 
-    current_chapter = 0
-
     for i, page in enumerate(doc, 1):
         w, h = page.rect.width, page.rect.height
+
+        # =========================================================
+        # [NEW 1] Detect Tables & Images (Visual Areas)
+        # =========================================================
+        # หาพื้นที่ตารางและรูปภาพทั้งหมดในหน้านี้เตรียมไว้
+        visual_rects = get_visual_areas(page)
+
+        # =========================================================
+        # [NEW 2] Check Spacing Before Tables/Images
+        # =========================================================
+        # ตรวจว่ามีการเว้นบรรทัดก่อนตาราง/รูปภาพหรือไม่ (Default 8.0mm)
+        if checks.get("check_spacing", True): 
+             spacing_issues = check_visual_spacing(i, page, visual_rects, min_gap_mm=8.0)
+             issues.extend(spacing_issues)
 
         # Update Chapter
         previous_chapter = current_chapter
@@ -71,95 +85,66 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
         # เรียกฟังก์ชันดึงเลขหน้า
         page_num_str = get_page_number_text(page, m_top)
 
-        is_first_page_of_chapter = False
-
-        # เช็คว่าเป็นหน้าแรกของบทหรือไม่ (เปลี่ยนจากบทอื่น มาเป็นบท 1-5)
         is_first_page_of_chapter = (current_chapter != previous_chapter) and (1 <= current_chapter <= 9)
 
-        # เช็คว่า: ตอนนี้อยู่บท 1 แล้ว (และก่อนหน้านี้ไม่ใช่บท 1)
         if is_first_page_of_chapter and current_chapter == 1:
             expected_page_str = "1"
             print(f"{YELLOW}>>> Entering Chapter 1: Resetting logical counter to '1'{RST}")
 
-        # Sync (Init) ถ้ายังไม่มีเลขในใจ แต่เจอเลขบนกระดาษ -> เริ่มนับจากเลขที่เจอ
+        # Sync (Init)
         if expected_page_str is None and page_num_str:
              expected_page_str = page_num_str
 
-        expected_visible = expected_page_str  # ค่าปกติที่คาดหวังให้แสดงบนหน้า
-
-        # Override: ถ้าเป็นหน้าแรกของบท ต้องไม่แสดงเลขหน้า (คาดหวัง None)
+        expected_visible = expected_page_str
         if is_first_page_of_chapter:
             expected_visible = None
         
-        
         # ---------------------------------------------------------
-        # Print (Debug) - [UPDATED]
+        # Print (Debug)
         # ---------------------------------------------------------
         display_text = page_num_str if page_num_str else "-"
         display_expect = expected_visible if expected_visible else "-"
         
-        # เปรียบเทียบค่า: แปลงให้เป็น format เดียวกันก่อนเทียบ (None vs None)
         val_found = page_num_str if page_num_str else None
         val_expect = expected_visible
         
-        # เลือกสี: ถ้าตรง=เขียว, ไม่ตรง=แดง
-        if val_found == val_expect:
-            status_color = GREEN
-        else:
-            status_color = RED
-
+        status_color = GREEN if val_found == val_expect else RED
         print(f"Page {i}: Found Header = '{BLUE}{display_text}{RST}' expected_page : {status_color}{display_expect}{RST}")
         # ---------------------------------------------------------
 
-        # อัปเดตว่าตอนนี้อยู่บทไหน
+        # Re-detect chapter (เผื่อ header เปลี่ยนในหน้านั้น)
         current_chapter = detect_current_chapter(page, current_chapter)
         
-        # Print เช็ค
         status_msg = f"Validating Page {i}"
         if current_chapter > 0:
             status_msg += f" (In Chapter {current_chapter})"
         else:
             status_msg += " (Pre-content / Abstract)"
-            
         print(status_msg)
         
         # --- A. Page Sequence ---
         if checks.get("check_page_seq"):
-            # แปลง Empty String เป็น None เพื่อให้เทียบง่ายๆ
             found_val = page_num_str if page_num_str else None
             
-            # กรณีที่ 1: คาดหวังว่าจะ "ซ่อนเลข" (Expected Visible = None)
             if expected_visible is None:
                 if found_val is not None:
-                    # แต่เจอเลข
                     msg = f"รูปแบบหน้าผิด: หน้าแรกของบทต้องไม่แสดงเลขหน้า (เจอ '{found_val}')"
                     issues.append(Issue(i, "PAGE_SEQ_HIDDEN_ERR", "error", msg, bbox=[0,0,w,50]))
-
-            # กรณีที่ 2: คาดหวังว่าจะ "มีเลข" (Expected Visible = "1", "2", ...)
             else:
                 if found_val is None:
-                    # หาเลขไม่เจอ
                     msg = f"ไม่พบเลขหน้า: ควรแสดงเลข '{expected_visible}'"
                     issues.append(Issue(i, "PAGE_SEQ_MISSING", "error", msg, bbox=[0,0,w,50]))
-                
                 elif found_val != expected_visible:
-                    # เลขผิด (เช่น เจอ 5 แต่ควรเป็น 6)
                     msg = f"ลำดับหน้าผิด: เจอ '{found_val}' แต่ควรเป็น '{expected_visible}'"
                     issues.append(Issue(
                         i, "PAGE_SEQ_ERROR", "error", msg, 
                         bbox=fitz.Rect(w * 0.7, 0, w, m_top * 0.9)
                     ))
-                    # Recovery: ผิดแล้วให้เชื่อตามเลขจริงไปเลย
                     expected_page_str = found_val
 
-        # ---------------------------------------------------------
-        # Calculate Next Page
-        # ---------------------------------------------------------
-        # เพื่อให้ State การนับหน้าทำงานต่อเนื่องเสมอ ไม่ว่าจะเปิดปิดการตรวจ
         if expected_page_str:
             expected_page_str = get_next_page_label(expected_page_str)
         elif page_num_str:
-            # กรณีที่ expected หลุดไปแล้ว แต่กลับมาเจอเลขหน้าใหม่ ก็ให้เริ่มนับต่อจากตรงนี้
             expected_page_str = get_next_page_label(page_num_str)
 
         # --- B. Prepare Lines ---
@@ -179,6 +164,14 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             # Filter Header/Footer
             if l_bbox.y1 < m_top or l_bbox.y0 > (h - m_bottom): continue
 
+            # =========================================================
+            # [NEW 3] Visual Content Filtering
+            # =========================================================
+            # ถ้าบรรทัดนี้อยู่ในพื้นที่ตารางหรือรูปภาพ -> ข้ามการตรวจทันที
+            if is_inside_visual(line["bbox"], visual_rects):
+                continue
+            # =========================================================
+
             spans = line["spans"]
             line_text = "".join([s["text"] for s in spans]).strip()
             if not line_text: continue
@@ -190,12 +183,18 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
                 margin_issues = check_margin_rules(
                     page_num=i, 
                     bbox=line["bbox"], 
-                    margin_cfg=margin_cfg
+                    margin_cfg=margin_cfg,
+                    page_width=w,
+                    page_height=h,  
+                    spans=line["spans"] 
                 )
                 issues.extend(margin_issues)
 
             # 2. Indentation
-            if checks.get("check_indentation"):
+            # ตรวจเฉพาะเมื่ออยู่ในบทที่ 1-5 เท่านั้น
+            is_main_content = (1 <= current_chapter <= 5)
+            
+            if checks.get("check_indentation") and is_main_content:
                 indent_issues = check_indentation_rules(
                     page_num=i,
                     line_text=line_text,

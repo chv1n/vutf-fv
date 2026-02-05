@@ -45,10 +45,6 @@ def check_section_rules(
             if re.match(full_regex, line_text):
                  return found_issues, updated_last_nums
 
-        # =========================================================
-        # Logic การตรวจปกติ
-        # =========================================================
-        
         if curr_sec[0] != chapter_num:
              found_issues.append(Issue(
                 page_num, 

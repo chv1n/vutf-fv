@@ -60,7 +60,7 @@ def check_chapter_1(pdf_path: str) -> List[Issue]:
             
             dist_mm = to_mm(l_bbox.x0 - m_left)
 
-            # [Check 1] Section Sequence (เรียกฟังก์ชันแยก)
+            # [Check 1] Section Sequence
             if checks.get("check_section_seq"):
                 seq_issues, last_section_nums = check_section_rules(
                     page_num=i,
