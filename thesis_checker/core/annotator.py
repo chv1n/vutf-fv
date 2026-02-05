@@ -1,14 +1,18 @@
 import fitz
 from typing import List
 from models import Issue
-from config import DEFAULT_CONFIG, DEBUG
-from utils import mm, to_mm
+from config import DEFAULT_CONFIG
+from utils import mm
 from tqdm import tqdm
 
+
+DEBUG = False 
+
 def annotate_and_save_pdf(input_path: str, output_path: str, issues: List[Issue]):
-    print(f"Opening PDF: {input_path}")
+    print(f"[Annotator] Opening PDF: {input_path}")
     doc = fitz.open(input_path)
     
+    # Load Config (สำหรับวาดเส้น Margin)
     CFG = DEFAULT_CONFIG
     m_top = mm(CFG.get("margin_mm", {}).get("top", 25.4))
     m_bottom = mm(CFG.get("margin_mm", {}).get("bottom", 25.4))
@@ -17,131 +21,129 @@ def annotate_and_save_pdf(input_path: str, output_path: str, issues: List[Issue]
 
     for i, page in enumerate(tqdm(doc, desc="Annotating PDF", unit="page"), 1):
         w, h = page.rect.width, page.rect.height
-        
-        # 1. Draw Margins (Green Dashed)
-        # -------------------------------------------------------
+
+
+        # วาดเส้น Margin 
         r_margin = fitz.Rect(m_left, m_top, w - m_right, h - m_bottom)
         annot = page.add_rect_annot(r_margin)
-        annot.set_border(width=0.5)
+        annot.set_border(width=0.5, dashes=[2])
         annot.set_colors(stroke=(0, 1, 0))
         annot.update()
 
-        # 2. Collect Data & Draw Text Boxes
-        # -------------------------------------------------------
-        text_data = page.get_text("dict")
-        all_text_lines = []
-        raw_lines = []
+    
+        if DEBUG:
 
-        for block in text_data["blocks"]:
-            if "lines" in block:
-                for line in block["lines"]:
-                    line_bbox = fitz.Rect(line["bbox"])
-                    
-                    # ข้าม Header/Footer
-                    if line_bbox.y1 < m_top or line_bbox.y0 > (h - m_bottom): continue
-                    
-                    text_content = "".join([s["text"] for s in line["spans"]]).strip()
-                    if not text_content: continue
-                    
-                    # เก็บข้อมูลไว้คำนวณ Spacing
-                    all_text_lines.append(line_bbox)
-
-                    # -------------------------------------------------------
-                    # [A] Draw Text Boxes (Blue)
-                    # -------------------------------------------------------
-                    annot = page.add_rect_annot(line_bbox)
-                    annot.set_border(width=0.3)    
-                    annot.set_colors(stroke=(0, 0, 1)) # สีน้ำเงิน
+            # วาดกรอบตารางและรูปภาพ
+            visual_objects = []
+            try:
+                # รูปภาพ
+                for img in page.get_images():
+                    for r in page.get_image_rects(img):
+                        if r.width > 30 and r.height > 30: # กรองรูปเล็กๆ ออก
+                            visual_objects.append(r)
+                            annot = page.add_rect_annot(r)
+                            annot.set_border(width=1.0, dashes=[1, 2])
+                            annot.set_colors(stroke=(1, 0.5, 0)) # สีส้ม
+                            annot.set_info(content="Image/Visual Area (Skipped)", title="Debug")
+                            annot.update()
+                # ตาราง (ถ้าหาเจอ)
+                for tab in page.find_tables():
+                    r = fitz.Rect(tab.bbox)
+                    visual_objects.append(r)
+                    annot = page.add_rect_annot(r)
+                    annot.set_border(width=1.0, dashes=[1, 2])
+                    annot.set_colors(stroke=(1, 0.5, 0))
+                    annot.set_info(content="Table Area (Skipped)", title="Debug")
                     annot.update()
-                    # -------------------------------------------------------
+            except: pass
+    
+            # วาด Text Box และเส้น Indent
+            text_data = page.get_text("dict")
+            raw_lines = []
 
-                    # เก็บข้อมูล Indentation
-                    valid_x0s = [s["bbox"][0] for s in line["spans"] if s["text"].strip()]
-                    if valid_x0s:
-                        raw_lines.append({
-                            "y0": line_bbox.y0, 
-                            "x0": min(valid_x0s), 
-                            "mid_y": (line_bbox.y0 + line_bbox.y1) / 2
-                        })
-
-        # [B] Indentation Lines (Cyan)
-        # -------------------------------------------------------
-        if raw_lines:
-            raw_lines.sort(key=lambda x: x["y0"])
-            merged_lines = []
-            curr = raw_lines[0]
-            for l in raw_lines[1:]:
-                if abs(l["y0"] - curr["y0"]) < 3:
-                    curr["x0"] = min(curr["x0"], l["x0"])
-                else: 
-                    merged_lines.append(curr); curr = l
-            merged_lines.append(curr)
-
-            for line in merged_lines:
-                p1 = (m_left, line["mid_y"])
-                p2 = (line["x0"], line["mid_y"])
-                annot = page.add_line_annot(p1, p2)
-                annot.set_border(width=0.5)
-                annot.set_colors(stroke=(0, 0.8, 0.8))
-                annot.update()
-
-        # [C] Tables & Images
-        # -------------------------------------------------------
-        visual_objects = []
-        # try:
-        #     for tab in page.find_tables():
-        #         r = fitz.Rect(tab.bbox); visual_objects.append(r)
-        #         annot = page.add_rect_annot(r)
-        #         annot.set_border(width=1.5)
-        #         annot.set_colors(stroke=(1, 0.5, 0))
-        #         annot.set_info(content="Table")
-        #         annot.update()
-        # except: pass
-
-        try:
-            for img in page.get_images():
-                for r in page.get_image_rects(img):
-                    if r.width > 30 and r.height > 30 and not any(t.contains(r) for t in visual_objects):
-                        visual_objects.append(r)
-                        annot = page.add_rect_annot(r)
-                        annot.set_border(width=1.5)
-                        annot.set_colors(stroke=(1, 0.5, 0))
+            for block in text_data["blocks"]:
+                if "lines" in block:
+                    for line in block["lines"]:
+                        line_bbox = fitz.Rect(line["bbox"])
+                        # ข้าม Header/Footer ในการวาด Debug
+                        if line_bbox.y1 < m_top or line_bbox.y0 > (h - m_bottom): continue
+                        
+                        text_content = "".join([s["text"] for s in line["spans"]]).strip()
+                        if not text_content: continue
+                        
+                        # วาดกรอบข้อความ (สีน้ำเงิน)
+                        annot = page.add_rect_annot(line_bbox)
+                        annot.set_border(width=0.3)    
+                        annot.set_colors(stroke=(0, 0, 1))
                         annot.update()
-        except: pass
 
-        # [E] Issues (Red Box + Text)
-        # -------------------------------------------------------
+                        # เก็บข้อมูลเพื่อวาดเส้น Indent
+                        valid_x0s = [s["bbox"][0] for s in line["spans"] if s["text"].strip()]
+                        if valid_x0s:
+                            raw_lines.append({
+                                "y0": line_bbox.y0, 
+                                "x0": min(valid_x0s), 
+                                "mid_y": (line_bbox.y0 + line_bbox.y1) / 2
+                            })
+
+            # วาดเส้น Indent (สีฟ้า) เชื่อมจากขอบซ้ายมายังตัวหนังสือ
+            if raw_lines:
+                raw_lines.sort(key=lambda x: x["y0"])
+                merged_lines = []
+                curr = raw_lines[0]
+                for l in raw_lines[1:]:
+                    if abs(l["y0"] - curr["y0"]) < 3:
+                        curr["x0"] = min(curr["x0"], l["x0"])
+                    else: 
+                        merged_lines.append(curr); curr = l
+                merged_lines.append(curr)
+
+                for line in merged_lines:
+                    annot = page.add_line_annot((m_left, line["mid_y"]), (line["x0"], line["mid_y"]))
+                    annot.set_border(width=0.5)
+                    annot.set_colors(stroke=(0, 0.8, 0.8))
+                    annot.update()
+
+
         page_issues = [x for x in issues if x.page == i]
+        
         for issue in page_issues:
             color = (1, 0, 0) if issue.severity == "error" else (1, 0.6, 0)
+            
             if issue.bbox:
                 r = fitz.Rect(issue.bbox)
                 
-                # ============================================================
-                # เช็คว่ากรอบมีความกว้าง/สูง ผิดปกติหรือไม่ (เช่น ติดลบ หรือ เป็น 0)
-                # ============================================================
+                # เช็ค BBox ผิดปกติ
                 if r.is_empty or r.is_infinite or r.width <= 0 or r.height <= 0:
-                    # print(f"[Annotator] ⚠️ Skipping invalid BBox...")
                     continue
-                # ============================================================
                 
-                # 1. กรอบแดง
+                # วาดกรอบสี่เหลี่ยม (Frame)
                 annot = page.add_rect_annot(r)
-                annot.set_border(width=2.0)
+                annot.set_border(width=0.5)
                 annot.set_colors(stroke=color)
-                annot.update()
                 
-                # 2. ข้อความ Error Code
-                text_annot = page.add_freetext_annot(
-                    fitz.Rect(r.x0, r.y0 - 15, r.x0 + 200, r.y0), 
-                    issue.code, 
-                    fontsize=8, 
-                    fontname="helv", 
-                    text_color=color
-                )
-                text_annot.update()
+                # ใส่รายละเอียดไว้ใน Popup (เผื่อเอาเมาส์ชี้)
+                annot.set_info(content=issue.message, title="Thesis Checker", subject=issue.code) 
+                annot.update()
 
-    # Save
-    print(f"Saving annotated PDF to: {output_path}")
+                # ฝังป้าย Label (Embedded Text)
+                # คำนวณตำแหน่งเขียนข้อความ (มุมซ้ายบน)
+                text_point = fitz.Point(r.x0, r.y0 - 2)
+                
+                # ถ้ากรอบชิดขอบบนเกินไป ให้ย้ายลงมาข้างล่าง
+                if r.y0 < 15:
+                    text_point = fitz.Point(r.x0, r.y1 + 8)
+
+                # เขียนข้อความฝังลงใน PDF (ไม่ใช่ Annotation ลอย)
+                page.insert_text(
+                    text_point,
+                    str(issue.code), 
+                    fontsize=6,       
+                    fontname="helv", 
+                    color=color       
+                )
+
+    # Save PDF
+    print(f"[Annotator] Saving annotated PDF to: {output_path}")
     doc.save(output_path, garbage=4, deflate=True) 
     doc.close()

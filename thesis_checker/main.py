@@ -20,11 +20,21 @@ ANNOTATE = True
 def generate_csv(issues, summary=None):
     output = io.StringIO()
     writer = csv.writer(output)
+    
+    # เพิ่ม Header
     writer.writerow(["Page", "Code", "Severity", "Message", "BBox"])
-    for i in issues: writer.writerow([i.page, i.code, i.severity, i.message, str(i.bbox)])
+    
+    for i in issues:
+        bbox_str = ""
+        if i.bbox:
+            rounded_bbox = [round(x, 2) for x in i.bbox]
+            bbox_str = str(rounded_bbox)
+
+        writer.writerow([i.page, i.code, i.severity, i.message, bbox_str])
+        
     return output.getvalue()
 
-# ฟังก์ชันช่วยบันทึก CSV ลงเครื่อง [ADDED]
+# ฟังก์ชันช่วยบันทึก CSV ลงเครื่อง
 def save_csv_to_disk(csv_content: str, original_filename: str, prefix: str = "report"):
     # ตัดนามสกุลเดิมออก (เช่น .pdf) แล้วเติม .csv
     base_name = os.path.splitext(original_filename)[0]
@@ -64,7 +74,7 @@ async def check_pdf(file: UploadFile = File(...)):
         # 4. สร้าง CSV Data
         csv_data = generate_csv(issues)
         
-        # [ADDED] 5. บันทึกไฟล์ CSV ลงเครื่อง Server
+        # 5. บันทึกไฟล์ CSV ลงเครื่อง Server
         
         save_csv_to_disk(csv_data, file.filename, prefix="report_full")
         
