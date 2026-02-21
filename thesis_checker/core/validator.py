@@ -13,12 +13,11 @@ import utils as u
 # Import Modular Checks
 from core.check_margin import check_margin_rules
 from core.check_font import check_font
-from core.check_indent import check_indentation_rules
 from core.check_paper_size import check_paper_size
+from core.check_indent import check_page_indentation
 
 # Import Visual Checks
 from core.check_img_table import get_visual_areas, is_inside_visual, check_visual_spacing
-
 from core.detect_chapter import detect_current_chapter
 
 RED = '\033[91m'
@@ -65,11 +64,9 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
         w, h = page.rect.width, page.rect.height
 
         # Detect Tables & Images (Visual Areas)
-        # หาพื้นที่ตารางและรูปภาพทั้งหมดในหน้านี้เตรียมไว้
         visual_rects = get_visual_areas(page)
 
         # Check Spacing Before Tables/Images
-        # ตรวจว่ามีการเว้นบรรทัดก่อนตาราง/รูปภาพหรือไม่ (Default 8.0mm)
         if checks.get("check_spacing", True): 
              spacing_issues = check_visual_spacing(i, page, visual_rects, min_gap_mm=8.0)
              issues.extend(spacing_issues)
@@ -122,15 +119,15 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             if expected_visible is None:
                 if found_val is not None:
                     msg = f"รูปแบบหน้าผิด: หน้าแรกของบทต้องไม่แสดงเลขหน้า (เจอ '{found_val}')"
-                    issues.append(Issue(i, "PAGE_SEQ_HIDDEN_ERR", "error", msg, bbox=[0,0,w,50]))
+                    issues.append(Issue(i, "PAGE_SEQ_HIDDEN_ERR", msg, bbox=[0,0,w,50]))
             else:
                 if found_val is None:
                     msg = f"ไม่พบเลขหน้า: ควรแสดงเลข '{expected_visible}'"
-                    issues.append(Issue(i, "PAGE_SEQ_MISSING", "error", msg, bbox=[0,0,w,50]))
+                    issues.append(Issue(i, "PAGE_SEQ_MISSING", msg, bbox=[0,0,w,50]))
                 elif found_val != expected_visible:
                     msg = f"ลำดับหน้าผิด: เจอ '{found_val}' แต่ควรเป็น '{expected_visible}'"
                     issues.append(Issue(
-                        i, "PAGE_SEQ_ERROR", "error", msg, 
+                        i, "PAGE_SEQ_ERROR", msg, 
                         bbox=fitz.Rect(w * 0.7, 0, w, m_top * 0.9)
                     ))
                     expected_page_str = found_val
@@ -140,25 +137,33 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
         elif page_num_str:
             expected_page_str = get_next_page_label(page_num_str)
 
-        # --- B. Prepare Lines ---
+        # ตรวจ Indentation แบบ Block (ดึงออกมาตรวจรอบเดียวทั้งหน้า)
+        is_main_content = (1 <= current_chapter <= 5)
+        
+        if checks.get("check_indentation") and is_main_content:
+            # โยนตัวแปรให้ฟังก์ชันใหม่จัดการทีเดียวทั้งหน้าเลย (มี visual_rects ส่งไปให้กันพลาดตรวจในรูปด้วย)
+            indent_issues = check_page_indentation(page, i, m_left, rules, visual_rects)
+            issues.extend(indent_issues)
+
+        # Line Loop (ตรวจเฉพาะ Margin กับ Font ทีละบรรทัด) ---
         text_data = page.get_text("dict")
         all_lines = []
         for block in text_data["blocks"]:
+            # กรองเฉพาะ Text ไม่เอารูปภาพ
+            if block.get("type") != 0: continue
             if "lines" in block:
                 for line in block["lines"]:
                     all_lines.append(line)
         
         all_lines.sort(key=lambda l: l["bbox"][1])
 
-        # --- C. Line Loop ---
         for line in all_lines:
             l_bbox = fitz.Rect(line["bbox"])
             
             # Filter Header/Footer
             if l_bbox.y1 < m_top or l_bbox.y0 > (h - m_bottom): continue
 
-            # Visual Content Filtering
-            # ถ้าบรรทัดนี้อยู่ในพื้นที่ตารางหรือรูปภาพ -> ข้ามการตรวจทันที
+            # Visual Content Filtering (ข้ามตารางและรูปภาพ)
             if is_inside_visual(line["bbox"], visual_rects):
                 continue
 
@@ -166,9 +171,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             line_text = "".join([s["text"] for s in spans]).strip()
             if not line_text: continue
             
-            dist_mm = to_mm(l_bbox.x0 - m_left)
-
-            # 1. Margin
+            # 1. Margin (ยังต้องใช้ลูปทีละบรรทัดอยู่ เผื่อมีบางบรรทัดทะลุขอบ)
             if checks.get("check_margin"):
                 margin_issues = check_margin_rules(
                     page_num=i, 
@@ -180,23 +183,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
                 )
                 issues.extend(margin_issues)
 
-            # 2. Indentation
-            # ตรวจเฉพาะเมื่ออยู่ในบทที่ 1-5 เท่านั้น
-            is_main_content = (1 <= current_chapter <= 5)
-            
-            if checks.get("check_indentation") and is_main_content:
-                indent_issues = check_indentation_rules(
-                    page_num=i,
-                    line_text=line_text,
-                    spans=spans,
-                    bbox=line["bbox"],
-                    dist_mm=dist_mm,
-                    rules=rules,
-                    m_left=m_left
-                )
-                issues.extend(indent_issues)
-
-            # 3. Font
+            # 2. Font (ยังต้องใช้ลูปเช็คทุกคำ เพื่อกันเปลี่ยนฟอนต์กลางประโยค)
             if checks.get("check_font"):
                 font_issues = check_font(
                     page_num=i, 

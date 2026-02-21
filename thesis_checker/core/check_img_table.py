@@ -38,7 +38,7 @@ def is_inside_visual(bbox: list, visual_rects: List[fitz.Rect]) -> bool:
     text_rect = fitz.Rect(bbox)
     
     for v_rect in visual_rects:
-        # ใช้ intersects แทน contains เผื่อข้อความมันล้นกรอบนิดหน่อยก็ให้นับรวม
+        # ใช้ intersects แทน contains เผื่อข้อความล้นกรอบนิดหน่อยก็ให้นับรวม
         # หรือถ้าเอาเป๊ะๆ ใช้: if v_rect.contains(text_rect):
         
         # คำนวณพื้นที่ทับซ้อน (Intersection)

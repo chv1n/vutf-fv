@@ -5,13 +5,15 @@ from config import OUTPUT_DIR, DEFAULT_CONFIG, load_config
 from urllib.parse import quote
 
 # Import Validators
-from core.chapter1_validator import GREEN, RED, RST, check_chapter_1
-from core.chapter2_validator import check_chapter_2
-from core.chapter_validator import validate_chapter
 from core.validator import run_all_checks
 from core.annotator import annotate_and_save_pdf
 
 import uvicorn
+
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+RST = '\033[0m'
 
 app = FastAPI()
 
@@ -85,93 +87,6 @@ async def check_pdf(file: UploadFile = File(...)):
             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote('report.csv')}"}
         )
         
-    except Exception as e: 
-        return JSONResponse(status_code=500, content={"error": str(e)})
-    finally:
-        if os.path.exists(temp_in): os.remove(temp_in)
-
-# -------------------------------------------------------------------------------------------------------
-
-@app.post("/check_chapter/{chapter_num}")
-async def check_specific_chapter(
-    chapter_num: int = Path(..., title="The chapter number to validate", ge=1, le=5),
-    file: UploadFile = File(...) 
-):
-    temp_in = f"temp_chap{chapter_num}_{file.filename}"
-    local_out = os.path.join(OUTPUT_DIR, f"debug_chap{chapter_num}_{file.filename}")
-    
-    try:
-        with open(temp_in, "wb") as f: f.write(await file.read())
-        
-        issues = validate_chapter(temp_in, chapter_num=chapter_num)
-        
-        annotate_and_save_pdf(temp_in, local_out, issues)
-        
-        csv_data = generate_csv(issues)
-        
-        # [ADDED] บันทึกไฟล์ CSV ลงเครื่อง Server
-        save_csv_to_disk(csv_data, file.filename, prefix=f"report_chap{chapter_num}")
-        
-        report_filename = f"report_chapter{chapter_num}.csv"
-        return StreamingResponse(
-            io.StringIO(csv_data), 
-            media_type="text/csv", 
-            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(report_filename)}"}
-        )
-        
-    except Exception as e: 
-        return JSONResponse(status_code=500, content={"error": str(e)})
-    finally:
-        if os.path.exists(temp_in): os.remove(temp_in)
-
-@app.post("/check_chapter1")
-async def check_chapter1(file: UploadFile = File(...)):
-    temp_in = f"temp_{file.filename}"
-    local_out = os.path.join(OUTPUT_DIR, f"debug_chap1_{file.filename}")
-    try:
-        with open(temp_in, "wb") as f: f.write(await file.read())
-        
-        issues = check_chapter_1(temp_in)
-        
-        annotate_and_save_pdf(temp_in, local_out, issues)
-        
-        csv_data = generate_csv(issues, summary=None) 
-        
-        # [ADDED] บันทึกไฟล์ CSV ลงเครื่อง Server
-        save_csv_to_disk(csv_data, file.filename, prefix="report_chap1")
-        
-        return StreamingResponse(
-            io.StringIO(csv_data), 
-            media_type="text/csv", 
-            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote('report_chapter1.csv')}"}
-        )
-    except Exception as e: 
-        return JSONResponse(status_code=500, content={"error": str(e)})
-    finally:
-        if os.path.exists(temp_in): os.remove(temp_in)
-
-
-@app.post("/check_chapter2")
-async def check_chapter2(file: UploadFile = File(...)):
-    temp_in = f"temp_{file.filename}"
-    local_out = os.path.join(OUTPUT_DIR, f"debug_chap2_{file.filename}")
-    try:
-        with open(temp_in, "wb") as f: f.write(await file.read())
-        
-        issues = check_chapter_2(temp_in)
-        
-        annotate_and_save_pdf(temp_in, local_out, issues)
-        
-        csv_data = generate_csv(issues, summary=None) 
-        
-        # [ADDED] บันทึกไฟล์ CSV ลงเครื่อง Server
-        save_csv_to_disk(csv_data, file.filename, prefix="report_chap2")
-        
-        return StreamingResponse(
-            io.StringIO(csv_data), 
-            media_type="text/csv", 
-            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote('report_chapter2.csv')}"}
-        )
     except Exception as e: 
         return JSONResponse(status_code=500, content={"error": str(e)})
     finally:

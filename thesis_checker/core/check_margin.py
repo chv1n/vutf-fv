@@ -8,7 +8,7 @@ def check_margin_rules(
     margin_cfg: dict, 
     page_width: float, 
     page_height: float,
-    spans: list = None  # <--- [NEW] รับ spans เข้ามาด้วย
+    spans: list = None
 ) -> List[Issue]:
     """
     ตรวจสอบระยะขอบ โดยตัดพื้นที่ว่าง (Whitespace) ท้ายบรรทัดออกก่อนคำนวณ

@@ -26,11 +26,11 @@ def check_font(page_num: int, spans: list, font_cfg: dict) -> List[Issue]:
     # 4. Regex Patterns
     # - ตัวเลขและสัญลักษณ์พื้นฐาน
     NUMERIC_PATTERN = r"^[0-9\[\]\(\)\.,\-\+\*/=]+$"
-    # - [NEW] ตัวแปรภาษาอังกฤษสั้นๆ (เช่น N, x, y, CH, S.D., pH) ไม่เกิน 5 ตัวอักษร
+    # - ตัวแปรภาษาอังกฤษสั้นๆ (เช่น N, x, y, CH, S.D., pH) ไม่เกิน 5 ตัวอักษร
     #   (ป้องกันไม่ให้ข้ามประโยคภาษาอังกฤษยาวๆ ที่ควรตรวจ)
     LATIN_VAR_PATTERN = r"^[A-Za-z0-9\.\-\s]{1,5}$"
 
-    # [NEW] รายการสัญลักษณ์กรีกที่พบบ่อย (Sigma, Mu, etc.)
+    # รายการสัญลักษณ์กรีกที่พบบ่อย (Sigma, Mu, etc.)
     GREEK_SYMBOLS = ["∑", "Σ", "µ", "μ", "α", "β", "Ω", "π", "∆"]
 
     for span in spans:

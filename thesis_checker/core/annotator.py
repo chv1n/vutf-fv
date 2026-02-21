@@ -134,7 +134,7 @@ def annotate_and_save_pdf(input_path: str, output_path: str, issues: List[Issue]
                 if r.y0 < 15:
                     text_point = fitz.Point(r.x0, r.y1 + 8)
 
-                # เขียนข้อความฝังลงใน PDF (ไม่ใช่ Annotation ลอย)
+                # เขียนข้อความฝังลงใน PDF
                 page.insert_text(
                     text_point,
                     str(issue.code), 
