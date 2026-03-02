@@ -13,32 +13,37 @@ def load_config():
         except Exception as e:
             print(f"Error loading JSON: {e}")
             
-    print("Warning: config.json not found or error.")
+    print("Warning: config.json not found or error. Using default config.")
     
     return {
-        # ตั้งค่า Margin ตามคู่มือ
         "margin_mm": {"top": 38.1, "bottom": 25.4, "left": 38.1, "right": 25.4},
         
         "font": {
             "name": "sarabun",
-            "size": 16.0,       # [แก้] ตามคู่มือระบุ 16 pt [cite: 52]
-            "tolerance": 1
+            "size": 16.0,
+            "tolerance": 1.0
         },
         
-        # --- กำหนดระยะเยื้อง (Indentation) ---
         "indent_rules": {
-            "paragraph": 15.0,           # ย่อหน้าปกติ (มักจะเริ่มที่ 1.5 ซม. หรือ 1.0 ซม. แล้วแต่คณะ)
+            "tolerance": 2.0,
             
-            # หัวข้อระดับ 3 (เช่น 1) )
-            "sub_section_num": 20.0,     # [แก้] ตามคู่มือระบุ 1.5 ซม. 
-            "sub_section_text_1": 25.0,  # ถูกต้อง (2.5 ซม. สำหรับเลข 1 หลัก) [cite: 70]
-            "sub_section_text_2": 27.6,  # ถูกต้อง (2.76 ซม. สำหรับเลข 2 หลัก) [cite: 72]
-            
-            # หัวข้อระดับ 4 (Bullet •)
-            "bullet_point": 25.0,        # ถูกต้อง (2.5 ซม.) [cite: 73]
-            "bullet_text": 30.0,         # ถูกต้อง (3.0 ซม.) [cite: 73]
-            
-            "tolerance": 5.0             # ยอมให้คลาดเคลื่อน 2 มม.
+            "para_indent": 10.0, 
+            "para_min_detect": 5.0,
+            "para_max_detect": 35.0,
+
+            "main_heading_num": 0.0,
+            "main_heading_text": 10.0,
+
+            "sub_heading_num": 10.0,
+            "sub_heading_text_1": 20.0,
+            "sub_heading_text_2": 22.5,
+
+            "list_item_num": 15.0,
+            "list_item_text_1": 25.0,
+            "list_item_text_2": 27.6,
+
+            "bullet_point": 25.0,
+            "bullet_text": 30.0
         },
         
         "check_list": {
@@ -46,8 +51,10 @@ def load_config():
             "check_margin": True, 
             "check_section_seq": True,
             "check_page_seq": True,     
+            "check_page_seq": True,     
             "check_indentation": True, 
-            "check_spacing": False 
+            "check_spacing": False,
+            "check_paper_size": False
         },
         
         "ignored_units": [
@@ -64,7 +71,6 @@ def load_config():
             "bar", "atm",
             "dB", "rpm"
         ]
-        
     }
 
 DEFAULT_CONFIG = load_config() 
