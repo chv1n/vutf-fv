@@ -51,6 +51,7 @@ def load_config():
             "check_margin": True, 
             "check_section_seq": True,
             "check_page_seq": True,     
+            "check_page_seq": True,     
             "check_indentation": True, 
             "check_spacing": False,
             "check_paper_size": False
