@@ -9,21 +9,19 @@ def check_paper_size(doc: fitz.Document) -> List[Issue]:
     """
     issues = []
     
-    # Standard A4 constants (ด้านสั้น และ ด้านยาว)
     A4_SHORT = 595.0
     A4_LONG = 842.0
-    TOLERANCE = 5.0
+
+    TOLERANCE = 25.0
     
     PT_TO_MM = 25.4 / 72
-
-    print("=== Pre-check: Validating Paper Size (A4) ===")
 
     for i, page in enumerate(doc, 1):
         w = page.rect.width
         h = page.rect.height
         
-        side_min = min(w, h) # ด้านสั้น
-        side_max = max(w, h) # ด้านยาว
+        side_min = min(w, h)
+        side_max = max(w, h)
         
         is_short_ok = abs(side_min - A4_SHORT) < TOLERANCE
         is_long_ok = abs(side_max - A4_LONG) < TOLERANCE
@@ -34,13 +32,13 @@ def check_paper_size(doc: fitz.Document) -> List[Issue]:
             
             msg = (
                 f"ขนาดกระดาษผิด: พบขนาด {w:.1f}x{h:.1f} pt ({w_mm:.1f}x{h_mm:.1f} มม.) "
-                f"| มาตรฐาน A4 ต้องเป็น ~595x842 pt (210x297 มม.)"
+                f"| มาตรฐาน A4 ต้องเป็น 595x842 pt (210x297 มม.)"
             )
             
             issues.append(Issue(
                 page=i, 
                 code="PAPER_SIZE_ERR", 
-                severity="critical", 
+                severity="error", 
                 message=msg, 
                 bbox=[0, 0, w, h]
             ))
