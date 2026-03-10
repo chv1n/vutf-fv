@@ -27,8 +27,8 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
             all_lines.append(line)
     all_lines.sort(key=lambda l: l["bbox"][1])
 
-    prev_text = state.prev_line_text  # เริ่มจากค่าที่ validator pass มา (บรรทัดสุดท้ายของหน้าก่อน)
-    prev_b_type = "paragraph"         # b_type ของบรรทัดก่อนหน้า (local tracking)
+    prev_text = state.prev_line_text
+    prev_b_type = "paragraph"        
 
     for line in all_lines:
 
@@ -77,13 +77,6 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
             target_num = rules.get("main_heading_num", 0.0)
             target_text = rules.get("main_heading_text", 10.0)
 
-            # test
-            if "1.2" in prefix_str:
-                print(f"👀 DEBUG 1.2 -> prefix_x0: {prefix_x0}, text_x0: {text_x0}")
-                if text_x0 is not None:
-                    txt_dist = to_mm(text_x0 - m_left)
-                    print(f"🎯 DEBUG 1.2 -> txt_dist: {txt_dist:.2f}mm | target: {target_text}mm | diff: {abs(txt_dist - target_text):.2f}mm")
-            
             # ตรวจสอบตัวหนา
             if not is_bold(line):
                 found_issues.append(Issue(
@@ -94,13 +87,12 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                 ))
         elif b_type == "sub_section":
             target_num = rules.get("sub_heading_num", 10.0)
-            # เคส 1: ทุกตำแหน่ง 1 หลัก (2.1.1)   → 20mm
-            # เคส 2: หลักกลาง 2 หลัก (2.10.1)     → 22.5mm
-            # เคส 3: หลักกลาง + ท้ายเป็น 2 หลัก (2.10.11) → 24.5mm
+            
             try:
                 parts = prefix_str.split(".")
+                # นับความยาวจากส่วนประกอบที่ split ออกมาจริงๆ
                 mid_digits  = len(parts[1]) if len(parts) > 1 else 1
-                last_digits = digits  # มาจาก get_prefix_and_text_coords (group 2 = เลขท้าย)
+                last_digits = len(parts[2]) if len(parts) > 2 else 1 # ใช้ index 2 สำหรับ X.X.10
             except (IndexError, AttributeError):
                 mid_digits, last_digits = 1, 1
 
@@ -110,10 +102,6 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                 target_text = rules.get("sub_heading_text_2", 22.5)
             else:
                 target_text = rules.get("sub_heading_text_1", 20.0)
-                
-            # เก็บ state
-            state.last_heading_type = b_type
-            state.last_heading_text_indent = target_text
             
         elif b_type == "sub_sub_section":
             target_num = state.last_heading_text_indent
