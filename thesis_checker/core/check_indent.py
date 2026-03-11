@@ -146,22 +146,28 @@ def check_page_indentation(state: ThesisState, all_lines: list, page_num: int, m
         # กำหนดเป้าหมาย ตามประเภทบรรทัด
         if line_type == "section":
             target_num = rules.get("main_heading_num", 0.0)
-            target_text = rules.get("main_heading_text", 10.0)
-            if not is_bold(line):
-                found_issues.append(Issue(page=page_num, code="FONT_STYLE_ERR", message=f"หัวข้อสำคัญ ({prefix_str}) ต้องเป็นตัวหนา", bbox=trimmed_bbox))
+            # ดักจับเคส 2.12 (Section ที่มีเลขบทหรือเลขหัวข้อ 2 หลัก)
+            parts = prefix_str.split(".")
+            # ถ้าส่วนใดส่วนหนึ่งมี 2 หลัก (เช่น 2.12 หรือ 10.1) ให้ขยับระยะข้อความ
+            if any(len(p) >= 2 for p in parts):
+                target_text = rules.get("main_heading_text_2", 12.5) # ปกติจะบวกเพิ่ม ~2.5mm
+            else:
+                target_text = rules.get("main_heading_text_1", 10.0)
 
         elif line_type == "sub_section":
             target_num = rules.get("sub_heading_num", 10.0)
-            try:
-                parts = prefix_str.split(".")
-                mid_digits  = len(parts[1]) if len(parts) > 1 else 1
-                last_digits = len(parts[2]) if len(parts) > 2 else 1
-            except (IndexError, AttributeError):
-                mid_digits, last_digits = 1, 1
+            parts = prefix_str.split(".") # ["2", "12", "1"]
+            
+            # สกัดจำนวนหลักของตัวกลาง (mid) และตัวท้าย (last)
+            mid_len = len(parts[1]) if len(parts) > 1 else 1
+            last_len = len(parts[2]) if len(parts) > 2 else 1
 
-            if mid_digits >= 2 and last_digits >= 2: target_text = rules.get("sub_heading_text_3", 24.5)
-            elif mid_digits >= 2 or last_digits >= 2: target_text = rules.get("sub_heading_text_2", 22.5)
-            else: target_text = rules.get("sub_heading_text_1", 20.0)
+            if mid_len >= 2 and last_len >= 2:   # เคส 2.12.11
+                target_text = rules.get("sub_heading_text_3", 24.5)
+            elif mid_len >= 2 or last_len >= 2:  # เคส 2.12.1 หรือ 2.1.12
+                target_text = rules.get("sub_heading_text_2", 22.5)
+            else:                                # เคส 2.1.1 (ปกติ)
+                target_text = rules.get("sub_heading_text_1", 20.0)
             
             state.last_heading_text_indent = target_text
             
