@@ -123,7 +123,6 @@ def check_visual_spacing(
     for v_rect in visual_rects:
         # ข้ามตาราง/รูปที่อยู่บนสุดของหน้า
 
-        
         closest_text_bottom = 0
         closest_text_top = float('inf')  
         

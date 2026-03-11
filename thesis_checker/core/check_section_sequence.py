@@ -1,6 +1,7 @@
 import re
 from typing import List, Tuple, Optional
 from models import Issue, ThesisState
+from core.check_utils import is_formula
 
 def check_section_sequence(state: ThesisState, current_chapter: int, line_type: str, prefix_str: str, line_text: str, ignored_units: list = None) -> Optional[str]:
 
@@ -17,8 +18,12 @@ def check_section_sequence(state: ThesisState, current_chapter: int, line_type: 
     if prev_text.strip().endswith(("รูปที่", "ตารางที่", "สมการที่", "และ", "จาก")):
         return None
 
-    if line_type in ["section", "sub_section"] and not suffix_text:
+    # ถ้าไม่มี text หลังตัวเลข
+    if line_type in ["section", "sub_section", "sub_sub_section"] and not suffix_text:
         return None
+
+    # if is_formula(line_text):
+    #     return None
 
     # ถ้า suffix ขึ้นต้นด้วย unit (เช่น "V", "kHz", "%", "m/s")
     if ignored_units and line_type == "section":

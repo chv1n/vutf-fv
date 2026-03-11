@@ -27,7 +27,9 @@
     "dash_indent": 30,
     "dash_text": 35,
     "para_min_detect": 5,
-    "para_max_detect": 35
+    "para_max_detect": 35,
+    "short_line_max": 150,
+    "full_line_min": 170
   },
   "check_list": {
     "check_margin": true,
@@ -102,6 +104,9 @@
     "เดซิเบล",
     "%",
     "pt",
-    "มม."
+    "มม.",
+    "มิลลิเมตร",
+    "มิลลิกรัม",
+    "มิลลิ"
   ]
 }

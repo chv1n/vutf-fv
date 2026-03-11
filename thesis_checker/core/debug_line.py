@@ -36,11 +36,11 @@ def debug_classify_block(line: str) -> dict:
         text = line[match.end(1):].strip()
 
         # รูป / ตาราง
-        if line_type == "image_table":
+        if line_type == "image_table_caption":
             if prefix.startswith("รูปที่"):
-                line_type = "image"
+                line_type = "image_caption"
             else:
-                line_type = "table"
+                line_type = "table_caption"
 
         return {
             "type": line_type,
@@ -55,6 +55,12 @@ def debug_classify_block(line: str) -> dict:
     }
 
 def debug_line(page_num: int, line_text: str, line_dict: dict, chapter_num: int):
+    page_header = ""
+    if getattr(debug_line, "last_page", None) != page_num:
+
+        page_header = f"\n================== PAGE {page_num} ==================\n"
+        debug_line.last_page = page_num
+
     result = debug_classify_block(line_text)
 
     line_type = result['type']
@@ -81,8 +87,10 @@ def debug_line(page_num: int, line_text: str, line_dict: dict, chapter_num: int)
         p_bbox, t_bbox = extract_prefix_and_text_bboxes(line_dict, prefix)
         p_str = f"[{p_bbox[0]:.1f}, {p_bbox[1]:.1f}, {p_bbox[2]:.1f}, {p_bbox[3]:.1f}]" if p_bbox else "None"
         t_str = f"[{t_bbox[0]:.1f}, {t_bbox[1]:.1f}, {t_bbox[2]:.1f}, {t_bbox[3]:.1f}]" if t_bbox else "None"
-        return f"[{color}{line_type}{RST}] PREFIX {p_str}: '{color}{prefix}{RST}' | TEXT {t_str}: '{text}'"
+        debug_str = f"[{color}{line_type}{RST}] PREFIX {p_str}: '{color}{prefix}{RST}' | TEXT {t_str}: '{text}'"
     else:
         t_bbox = line_dict.get("bbox")
         t_str = f"[{t_bbox[0]:.1f}, {t_bbox[1]:.1f}, {t_bbox[2]:.1f}, {t_bbox[3]:.1f}]" if t_bbox else "None"
-        return f"[{color}{line_type}{RST}] TEXT {t_str}: '{text}'"
+        debug_str = f"[{color}{line_type}{RST}] TEXT {t_str}: '{text}'"
+
+    return page_header + debug_str

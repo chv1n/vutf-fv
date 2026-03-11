@@ -18,9 +18,8 @@ def get_prefix_and_text_coords(line_raw: dict):
                 try:
                     chap_num = int(parts[0])
                     sec_num  = int(parts[1])
-                    # เลขบทต้อง 1-10, เลขหัวข้อต้อง 1-19
-                    if chap_num < 1 or chap_num > 10 or sec_num >= 20:
-                        continue  # ไม่ใช่หัวข้อจริง → ตรวจ pattern ถัดไป
+                    if chap_num < 1 or chap_num > 5 or sec_num >= 20:
+                        continue  # ไม่ใช่หัวข้อจริง ตรวจ pattern ถัดไป
                 except (ValueError, IndexError):
                     continue
 
@@ -31,7 +30,6 @@ def get_prefix_and_text_coords(line_raw: dict):
                     sec_num  = int(parts[1])
                     sub_num  = int(parts[2])
                     
-                    # เลขบท 1-5, เลขหัวข้อ 1-19, เลขรอง 1-19
                     if chap_num < 1 or chap_num > 5 or sec_num >= 20 or sub_num >= 20:
                         continue
 
@@ -50,25 +48,28 @@ def get_prefix_and_text_coords(line_raw: dict):
             
             end_idx = start_idx + len(prefix_str)
             
-            p_rect = fitz.Rect()
+            # 1. สแกนหาพิกัดแกน X ของ Prefix (ข้ามช่องว่าง)
+            prefix_x0 = line_raw["bbox"][0] # ค่าเผื่อพลาด
             for i in range(start_idx, end_idx):
-                p_rect.include_rect(all_chars[i]["bbox"])
+                if all_chars[i]["c"].strip():
+                    prefix_x0 = all_chars[i]["bbox"][0]
+                    break
             
+            # 2. สแกนหาพิกัดแกน X ของ Text (ข้ามช่องว่างและ Tab ล่องหน)
             text_start_idx = end_idx
-            while text_start_idx < len(all_chars) and not all_chars[text_start_idx]["c"].strip():
-                text_start_idx += 1
-            
-            t_rect = fitz.Rect()
+            text_x0 = None
             if text_start_idx < len(all_chars):
                 for i in range(text_start_idx, len(all_chars)):
-                    t_rect.include_rect(all_chars[i]["bbox"])
+                    if all_chars[i]["c"].strip(): # ข้าม Space หรือ Tab
+                        text_x0 = all_chars[i]["bbox"][0] # ตัวอักษรจริงตัวแรก
+                        break
 
             return {
                 "type": line_type,
                 "prefix": prefix_str,
                 "digits": digits,
-                "prefix_x0": p_rect.x0,
-                "text_x0": t_rect.x0 if not t_rect.is_empty else None
+                "prefix_x0": prefix_x0,
+                "text_x0": text_x0
             }
 
     first_char_x0 = line_raw["bbox"][0]
