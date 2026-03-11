@@ -94,6 +94,8 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
             if mid_digits >= 2 and last_digits >= 2: target_text = rules.get("sub_heading_text_3", 24.5)
             elif mid_digits >= 2 or last_digits >= 2: target_text = rules.get("sub_heading_text_2", 22.5)
             else: target_text = rules.get("sub_heading_text_1", 20.0)
+
+            state.last_heading_text_indent = target_text # บันทึกระยะเยื้องข้อความของหัวข้อย่อยล่าสุดไว้ใน State เพื่อใช้กับ sub_sub_section ต่อไป
             
         elif line_type == "sub_sub_section":
             target_num = state.last_heading_text_indent
