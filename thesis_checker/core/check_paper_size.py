@@ -3,10 +3,6 @@ from typing import List
 from models import Issue
 
 def check_paper_size(doc: fitz.Document) -> List[Issue]:
-    """
-    Check if all pages are A4 size (approx 595 x 842 points).
-    Returns a list of Critical Issues if any page is not A4.
-    """
     issues = []
     
     A4_SHORT = 595.0
@@ -34,7 +30,7 @@ def check_paper_size(doc: fitz.Document) -> List[Issue]:
             )
             issues.append(Issue(
                 page=i, 
-                code="PAPER_SIZE_ERR", 
+                code="PAPER_SIZE_ERROR", 
                 severity="error", 
                 message=msg, 
                 bbox=[0, 0, w, h]

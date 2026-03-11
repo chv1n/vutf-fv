@@ -1,7 +1,7 @@
 import fitz
 from typing import List, Dict, Any
 from models import Issue
-from utils import to_mm
+from utils import pt_to_mm
 
 def check_margin_rules(
     page_num: int, 
@@ -33,14 +33,15 @@ def check_margin_rules(
         for i in range(non_space_indices[0], non_space_indices[-1] + 1):
             real_rect.include_rect(all_chars[i]["bbox"])
 
-        curr_x0 = to_mm(real_rect.x0)
-        curr_y0 = to_mm(real_rect.y0)
-        curr_x1 = to_mm(real_rect.x1)
-        curr_y1 = to_mm(real_rect.y1)
+        # แปลงพิกัดพอยท์ (Points) ให้เป็น mm ก่อนตรวจ
+        curr_x0 = pt_to_mm(real_rect.x0)
+        curr_y0 = pt_to_mm(real_rect.y0)
+        curr_x1 = pt_to_mm(real_rect.x1)
+        curr_y1 = pt_to_mm(real_rect.y1)
         
         # แปลงขนาดหน้ากระดาษเป็น mm เพื่อหาขอบขวา/ล่าง
-        page_w_mm = to_mm(page_width)
-        page_h_mm = to_mm(page_height)
+        page_w_mm = pt_to_mm(page_width)
+        page_h_mm = pt_to_mm(page_height)
 
         # ตรวจขอบซ้าย
         if curr_x0 < (target_left - TOLERANCE):

@@ -7,13 +7,13 @@ def get_prefix_and_text_coords(line_raw: dict):
     full_text_raw = "".join([c["c"] for c in all_chars])
     full_text = full_text_raw.strip()
 
-    for b_type, regex in PATTERNS.items():
+    for line_type, regex in PATTERNS.items():
         match = re.search(regex, full_text)
         if match:
             prefix_str = match.group(1)
 
             # --- Validate numeric ranges เพื่อกรอง false positive ---
-            if b_type == "section":
+            if line_type == "section":
                 parts = prefix_str.split(".")
                 try:
                     chap_num = int(parts[0])
@@ -24,21 +24,23 @@ def get_prefix_and_text_coords(line_raw: dict):
                 except (ValueError, IndexError):
                     continue
 
-            if b_type == "sub_section":
+            if line_type == "sub_section":
                 parts = prefix_str.split(".")
                 try:
                     chap_num = int(parts[0])
                     sec_num  = int(parts[1])
                     sub_num  = int(parts[2])
+                    
                     # เลขบท 1-5, เลขหัวข้อ 1-19, เลขรอง 1-19
                     if chap_num < 1 or chap_num > 5 or sec_num >= 20 or sub_num >= 20:
                         continue
+
                 except (ValueError, IndexError):
                     continue
             
             # คำนวณ digits จาก Group ที่เราดักไว้
             digits = 0
-            if b_type in ["sub_section", "sub_sub_section"]:
+            if line_type in ["sub_section", "sub_sub_section"]:
                 digits = len(match.group(2))
             
             start_idx = full_text_raw.find(prefix_str)
@@ -62,14 +64,27 @@ def get_prefix_and_text_coords(line_raw: dict):
                     t_rect.include_rect(all_chars[i]["bbox"])
 
             return {
-                "type": b_type,
+                "type": line_type,
                 "prefix": prefix_str,
                 "digits": digits,
                 "prefix_x0": p_rect.x0,
                 "text_x0": t_rect.x0 if not t_rect.is_empty else None
             }
 
-    return {"type": "paragraph", "prefix": "", "digits": 0, "prefix_x0": line_raw["bbox"][0], "text_x0": None}
+    first_char_x0 = line_raw["bbox"][0]
+    
+    for c in all_chars:
+        if c["c"].strip(): # ถ้าเจอตัวอักษรที่ไม่ใช่ช่องว่าง
+            first_char_x0 = c["bbox"][0] # ล็อกพิกัดขอบซ้ายของตัวอักษรนั้นทันที
+            break
+            
+    return {
+        "type": "paragraph", 
+        "prefix": "", 
+        "digits": 0, 
+        "prefix_x0": first_char_x0, # ใช้พิกัดที่ Trim ช่องว่างแล้ว
+        "text_x0": None
+    }
 
 def is_bold(line: dict) -> bool:
     """ตรวจว่าในบรรทัดนั้นมี spans ที่เป็นตัวหนาหรือไม่"""

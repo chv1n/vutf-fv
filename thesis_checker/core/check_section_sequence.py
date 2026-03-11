@@ -2,7 +2,7 @@ import re
 from typing import List, Tuple, Optional
 from models import Issue, ThesisState
 
-def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str, prefix_str: str, line_text: str, ignored_units: list = None) -> Optional[str]:
+def check_section_sequence(state: ThesisState, current_chapter: int, line_type: str, prefix_str: str, line_text: str, ignored_units: list = None) -> Optional[str]:
 
     prev_text = state.prev_line_text.strip()
     suffix_text = line_text.replace(prefix_str, "").strip()
@@ -17,11 +17,11 @@ def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str
     if prev_text.strip().endswith(("รูปที่", "ตารางที่", "สมการที่", "และ", "จาก")):
         return None
 
-    if b_type in ["section", "sub_section"] and not suffix_text:
+    if line_type in ["section", "sub_section"] and not suffix_text:
         return None
 
     # ถ้า suffix ขึ้นต้นด้วย unit (เช่น "V", "kHz", "%", "m/s")
-    if ignored_units and b_type == "section":
+    if ignored_units and line_type == "section":
         for unit in ignored_units:
             if suffix_text == unit or suffix_text.startswith(unit + " ") or suffix_text.startswith(unit + "."):
                 return None
@@ -32,7 +32,7 @@ def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str
 
     error_msg = None
 
-    if b_type == "section":
+    if line_type == "section":
         if len(nums) < 2: return None
         curr_chap, curr_main = nums[0], nums[1]
 
@@ -47,7 +47,7 @@ def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str
         state.set_new_main_sec(nums)
         return error_msg
 
-    elif b_type == "sub_section":
+    elif line_type == "sub_section":
         if len(nums) < 3: return None
         curr_chap, curr_main, curr_sub = nums[0], nums[1], nums[2]
 
@@ -63,7 +63,7 @@ def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str
         state.set_new_sub_sec(nums)
         return error_msg
 
-    elif b_type == "sub_sub_section":
+    elif line_type == "sub_sub_section":
         curr_list = nums[0]
         expected_list = state.last_list_num + 1 if state.last_list_num else 1
         

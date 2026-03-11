@@ -2,6 +2,7 @@ import fitz
 import re
 from typing import List, Optional
 from models import Issue
+from config import NO_PAGE_SECTIONS
 
 def get_page_number_text(page, margin_top: float) -> str:
     w = page.rect.width
@@ -55,20 +56,11 @@ def check_page_sequence(
 ) -> tuple:
     """
     ตรวจสอบลำดับเลขหน้าของหน้าปัจจุบัน
-
-    Returns:
-        (issues, expected_page_str_after, page_num_str)
-        - issues              : รายการปัญหาที่พบ
-        - expected_page_str_after : ค่า expected_page_str หลังอัปเดต (ส่งต่อหน้าถัดไป)
-        - page_num_str        : เลขหน้าที่อ่านได้จาก header
     """
     w = page.rect.width
     issues: List[Issue] = []
 
     page_num_str = get_page_number_text(page, m_top)
-
-    # ซ่อนเลขหน้าหน้าแรก
-    NO_PAGE_SECTIONS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
     
     is_first_page_of_chapter = (current_chapter != previous_chapter) and (current_chapter in NO_PAGE_SECTIONS)
 

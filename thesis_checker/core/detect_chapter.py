@@ -8,10 +8,6 @@ YELLOW = '\033[93m'
 RST = '\033[0m'
 
 def detect_current_chapter(page: fitz.Page, current_chapter_num: int) -> int:
-    """
-    ระบุส่วนต่างๆ ของเล่ม (1-9)
-    โดยมีการกรองหน้า "สารบัญ" และ "หน้าที่มีเลข ก-ฮ" ออก
-    """
     w = page.rect.width
     h = page.rect.height
 
@@ -56,13 +52,13 @@ def detect_current_chapter(page: fitz.Page, current_chapter_num: int) -> int:
     # ตรวจหา ส่วนท้ายเล่ม 
     elif "บรรณานุกรม" in header_text:
         detected_chapter = 6
-    elif "ภาคผนวก ก" in center_text and len(center_text.strip()) <= 50:
+    elif "ภาคผนวก ก" in center_text and len(center_text.strip()) <= 60:
         detected_chapter = 7 
-    elif "ภาคผนวก ข" in center_text and len(center_text.strip()) <= 50:
+    elif "ภาคผนวก ข" in center_text and len(center_text.strip()) <= 60:
         detected_chapter = 8
-    elif "ภาคผนวก ค" in center_text and len(center_text.strip()) <= 50:
+    elif "ภาคผนวก ค" in center_text and len(center_text.strip()) <= 60:
         detected_chapter = 9
-    elif "ภาคผนวก ง" in center_text and len(center_text.strip()) <= 50:
+    elif "ภาคผนวก ง" in center_text and len(center_text.strip()) <= 60:
         detected_chapter = 10
     elif "ประวัติผู้จัดทำ" in header_text or "ประวัติผู้จัดทำ" in center_text:
         detected_chapter = 11

@@ -41,7 +41,7 @@ def check_font(page_num: int, spans: list, font_cfg: dict) -> List[Issue]:
             continue
 
         # ตรวจชื่อฟอนต์
-        if font_keyword not in f_name_lower and "cidfont" not in f_name_lower and "cordia" not in f_name_lower:
+        if font_keyword not in f_name_lower and "cidfont" not in f_name_lower:
             if any(wf in f_name_lower for wf in WARNING_FONTS):
                 severity = "warning"
                 msg = f"ฟอนต์ภายในเป็น {span['font']} (อนุโลม)"
@@ -58,7 +58,7 @@ def check_font(page_num: int, spans: list, font_cfg: dict) -> List[Issue]:
         if 12.0 <= span_size <= 20.0:
             if abs(span_size - font_size_target) > font_tol:
                 found_issues.append(Issue(
-                    page=page_num, code="FONT_SIZE", severity="warning", 
+                    page=page_num, code="FONT_SIZE_WARNING", severity="warning", 
                     message=f"ขนาดผิด: {span_size:.1f}pt (เจอ '{text_content}')", 
                     bbox=span["bbox"]
                 ))

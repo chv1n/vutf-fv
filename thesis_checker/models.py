@@ -10,13 +10,13 @@ class Issue:
     severity: str = "error"
     bbox: Optional[Tuple[float, float, float, float]] = None
 
-
 class ThesisState:
     def __init__(self):
         self.last_main_sec: Optional[List[int]] = None  
         self.last_sub_sec: Optional[List[int]] = None   
         self.last_list_num: Optional[int] = None   
         
+        self.prev_line_x1 = 0.0 # เก็บพิกัดขอบขวาของบรรทัดที่แล้ว
         self.prev_line_text = ""
 
         self.last_heading_type = "paragraph"
@@ -32,6 +32,7 @@ class ThesisState:
         self.last_list_num = None
 
         self.prev_line_text = ""
+        self.prev_line_x1 = 0.0
 
     def set_new_main_sec(self, nums: List[int]):
         self.last_main_sec = nums
@@ -52,14 +53,14 @@ class ThesisState:
         clean_str = prefix_str.translate(trans)
         return [int(n) for n in re.findall(r'\d+', clean_str)]
 
-def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str, prefix_str: str) -> Optional[str]:
+def check_section_sequence(state: ThesisState, current_chapter: int, line_type: str, prefix_str: str) -> Optional[str]:
     """รับ current_chapter ที่ได้จาก detect_chapter เข้ามาเป็นอาร์กิวเมนต์"""
     nums = state.extract_numbers(prefix_str)
     if not nums: return None
 
     error_msg = None
 
-    if b_type == "section":
+    if line_type == "section":
         if len(nums) < 2: return None
         curr_chap, curr_main = nums[0], nums[1]
 
@@ -73,7 +74,7 @@ def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str
         state.set_new_main_sec(nums)
         return error_msg
 
-    elif b_type == "sub_section":
+    elif line_type == "sub_section":
         if len(nums) < 3: return None
         curr_chap, curr_main, curr_sub = nums[0], nums[1], nums[2]
 
@@ -88,7 +89,7 @@ def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str
         state.set_new_sub_sec(nums)
         return error_msg
 
-    elif b_type == "sub_sub_section":
+    elif line_type == "sub_sub_section":
         curr_list = nums[0]
         expected_list = state.last_list_num + 1 if state.last_list_num else 1
         

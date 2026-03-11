@@ -1,7 +1,7 @@
 import fitz
 from typing import List
 from models import Issue
-from utils import mm
+from utils import mm_to_pt
 
 def get_visual_areas(page: fitz.Page) -> List[fitz.Rect]:
     """
@@ -75,7 +75,7 @@ def check_visual_spacing(
     โดยจะไม่นำข้อความที่ 'อยู่ในตารางอื่น' มาเป็นตัวเปรียบเทียบ
     """
     issues = []
-    min_gap_pt = mm(min_gap_mm) 
+    min_gap_pt = mm_to_pt(min_gap_mm) 
 
     text_dict = page.get_text("dict")
     blocks = text_dict.get("blocks", [])
@@ -161,9 +161,9 @@ def check_visual_spacing(
                 gap_in_mm = gap_above * 0.352778 
                 msg = f"ระยะห่างก่อนตาราง/รูปภาพน้อยเกินไป: {gap_in_mm:.1f}mm (ควรเว้น 1 บรรทัด)"
                 
-                issues.append(Issue(page=page_num, code="SPACING_ERR_ABOVE", severity=severity, message=msg, bbox=list(v_rect)))
+                issues.append(Issue(page=page_num, code="SPACING_ABOVE_WARNING", severity=severity, message=msg, bbox=list(v_rect)))
                 if closest_text_above_bbox:
-                     issues.append(Issue(page=page_num, code="SPACING_ERR_TEXT_ABOVE", severity=severity, message=msg, bbox=list(closest_text_above_bbox)))
+                     issues.append(Issue(page=page_num, code="SPACING_TEXT_ABOVE_WARNING", severity=severity, message=msg, bbox=list(closest_text_above_bbox)))
 
         # ตรวจสอบระยะห่างด้านล่าง
         if found_text_below:
@@ -173,8 +173,8 @@ def check_visual_spacing(
                 gap_in_mm = gap_below * 0.352778 
                 msg = f"ระยะห่างหลังตาราง/รูปภาพน้อยเกินไป: {gap_in_mm:.1f}mm (ควรเว้น 1 บรรทัด)"
                 
-                issues.append(Issue(page=page_num, code="SPACING_ERR_BELOW", severity=severity, message=msg, bbox=list(v_rect)))
+                issues.append(Issue(page=page_num, code="SPACING_BELOW_WARNING", severity=severity, message=msg, bbox=list(v_rect)))
                 if closest_text_below_bbox:
-                     issues.append(Issue(page=page_num, code="SPACING_ERR_TEXT_BELOW", severity=severity, message=msg, bbox=list(closest_text_below_bbox)))
+                     issues.append(Issue(page=page_num, code="SPACING_TEXT_BELOW_WARNING", severity=severity, message=msg, bbox=list(closest_text_below_bbox)))
 
     return issues
