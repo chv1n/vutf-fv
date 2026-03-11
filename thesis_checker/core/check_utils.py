@@ -11,6 +11,10 @@ def get_prefix_and_text_coords(line_raw: dict):
         match = re.search(regex, full_text)
         if match:
             prefix_str = match.group(1)
+            
+            # --- [เพิ่มส่วนนี้] บังคับว่า prefix ต้องอยู่หน้าสุดของข้อความ ---
+            if not full_text.startswith(prefix_str):
+                continue  # ถ้าไม่ใช่คำแรกของบรรทัด ให้ข้ามไปเลย ถือว่าเป็นแค่ประโยคธรรมดา
 
             # --- Validate numeric ranges เพื่อกรอง false positive ---
             if b_type == "section":
@@ -82,27 +86,35 @@ def is_bold(line: dict) -> bool:
 
 def is_formula(text: str) -> bool:
     """ตรวจว่าข้อความเป็นสูตร/สมการหรือไม่"""
-    # มีเครื่องหมาย = ที่ไม่ใช่เปรียบเทียบ (เช่น "x = 2y + 3")
+    
+    # 1. กฎเหล็ก: นับสัดส่วนตัวอักษรไทยก่อนเป็นอันดับแรก
+    thai_chars = len(re.findall(r'[\u0E00-\u0E7F]', text))
+    total_chars = len(text.replace(' ', ''))
+    
+    if total_chars == 0:
+        return False
+        
+    # ถ้ามีภาษาไทยปนอยู่เยอะ (ตั้งแต่ 30% ขึ้นไป) ให้ฟันธงว่าเป็นข้อความธรรมดา ไม่ใช่สมการ
+    if (thai_chars / total_chars) >= 0.3:
+        return False
+
+    # 2. ถ้าหลุดรอดกฎเหล็กมาได้ (แปลว่าภาษาไทยน้อย) ค่อยมาเช็คว่าเป็นสมการหรือไม่
+    
+    # มีเครื่องหมาย = ที่ไม่ใช่เปรียบเทียบ
     if '=' in text and len(text) < 200:
-        # นับสัดส่วนตัวอักษรไทยในข้อความ ถ้าเป็นภาษาไทยเยอะ ไม่ใช่สูตร
-        thai_chars = len(re.findall(r'[\u0E00-\u0E7F]', text))
-        total_chars = len(text.replace(' ', ''))
-        if total_chars > 0 and (thai_chars / total_chars) < 0.3:
-            return True
+        return True
     
     # มีสัญลักษณ์คณิตศาสตร์ เช่น ×, ÷, ±, ≤, ≥, ∑, ∫, √, Δ, α, β
     math_symbols = set('×÷±≤≥≠∑∫√∆∞αβγδεζηθλμπσφωΩ')
     if any(c in math_symbols for c in text):
         return True
     
-    # ข้อความสั้นที่มี operator ทางคณิตศาสตร์เยอะ (เช่น "P = V × I")
+    # ข้อความสั้นที่มี operator ทางคณิตศาสตร์เยอะ (เช่น "P = V * I")
     if len(text) < 100:
         math_ops = len(re.findall(r'[+\-*/=<>^²³]', text))
         if math_ops >= 2:
-            thai_chars = len(re.findall(r'[\u0E00-\u0E7F]', text))
-            if thai_chars < 3:
-                return True
-    
+            return True
+            
     return False
 
 def get_line_text_from_raw(line_data: dict) -> str:

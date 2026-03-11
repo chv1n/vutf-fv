@@ -17,7 +17,8 @@ def check_section_sequence(state: ThesisState, current_chapter: int, b_type: str
     if prev_text.strip().endswith(("รูปที่", "ตารางที่", "สมการที่", "และ", "จาก")):
         return None
 
-    if b_type in ["section", "sub_section"] and not suffix_text:
+    # เพิ่ม sub_sub_section เข้าไป เพื่อดักเคส 2) โดดๆ จากสมการ
+    if b_type in ["section", "sub_section", "sub_sub_section"] and not suffix_text:
         return None
 
     # ถ้า suffix ขึ้นต้นด้วย unit (เช่น "V", "kHz", "%", "m/s")

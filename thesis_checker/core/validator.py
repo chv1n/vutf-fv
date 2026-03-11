@@ -17,7 +17,7 @@ from core.check_indent import check_page_indentation
 from core.check_section_sequence import check_section_sequence
 
 # Import Utility
-from core.check_utils import get_prefix_and_text_coords
+from core.check_utils import get_prefix_and_text_coords, is_formula
 from core.debug_line import debug_line
 
 # Import Visual Checks
@@ -113,14 +113,15 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             issues.extend(check_page_indentation(global_state, page, i, m_left, rules, visual_rects, ignored_units))
 
         content_lines_for_margin = []
+        prev_l_bbox_for_seq = None  # <--- [เพิ่มบรรทัดนี้] เก็บพิกัดบรรทัดก่อนหน้า
 
         for line in all_lines:
-            # l_bbox = fitz.Rect(line["bbox"])
+            l_bbox = fitz.Rect(line["bbox"])
 
-            # if l_bbox.y1 < m_top or l_bbox.y0 > (h - m_bottom): 
-            #     continue
-            # if is_inside_visual(line["bbox"], visual_rects): 
-            #     continue
+            if l_bbox.y1 < m_top or l_bbox.y0 > (h - m_bottom): 
+                continue
+            if is_inside_visual(line["bbox"], visual_rects): 
+                continue
 
             spans = line.get("spans", [])
             # ดึงข้อความจาก span
@@ -140,10 +141,63 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             prefix_data = get_prefix_and_text_coords(line)
             b_type = prefix_data["type"]
             prefix_str = prefix_data["prefix"]
+            
+            # --- [ต้องมี 4 บรรทัดนี้ก่อนเข้าตะแกรงร่อนครับ] ---
+            from utils import to_mm  # ให้แน่ใจว่า import to_mm มาแล้ว
+            prefix_x0 = prefix_data.get("prefix_x0")
+            text_x0 = prefix_data.get("text_x0")
+            
+            dist_mm = to_mm(prefix_x0 - m_left) if prefix_x0 is not None else None
+            text_dist_mm = to_mm(text_x0 - m_left) if text_x0 is not None else None
+
+            # --- [ตะแกรงร่อนหัวข้อปลอม V5] ---
+            if dist_mm is not None and text_dist_mm is not None:
+                is_fake = False
+                
+                # เช็คระยะห่างระหว่างบรรทัด (ใช้ y0 - y0 จะแม่นยำกว่า y0 - y1)
+                # ปกติถ้าเว้น 1 บรรทัด ระยะ y0 จะห่างกันประมาณ 40pt+ ถ้าบรรทัดติดกันจะห่างแค่ ~20-25pt
+                gap_y0 = (l_bbox.y0 - prev_l_bbox_for_seq.y0) if prev_l_bbox_for_seq else 100.0
+                is_continuous = gap_y0 < 35.0  # ถ้า < 35.0 แปลว่าไม่มีบรรทัดว่างคั่น
+                
+                if b_type == "section":
+                    # กฎ 1: บรรทัดติดกัน + ระยะข้อความไม่ถึง 8mm (ไม่ได้กด Tab) = ย่อหน้าตัดคำ
+                    if is_continuous and text_dist_mm < 8.0:
+                        is_fake = True
+                    # กฎ 2: เยื้องลึกเกินไป
+                    elif dist_mm > 15.0:
+                        is_fake = True
+                        
+                elif b_type == "sub_section":
+                    # กฎ 1: บรรทัดติดกัน + ตัวเลขเกาะขอบซ้ายสุด (< 5mm) = ย่อหน้าตัดคำ
+                    if is_continuous and dist_mm < 5.0:
+                        is_fake = True
+                    # กฎ 2: เยื้องลึกเกินไป
+                    elif dist_mm > 20.0:
+                        is_fake = True
+                        
+                if is_fake:
+                    b_type = "paragraph"
+                    prefix_str = ""
+            # --------------------------------------------------------
+            
+            # [เพิ่มบล็อกนี้] ถ้าเจอหัวข้อที่ลึกเกิน 3 ระดับ แจ้ง Error ทันที
+            if b_type == "invalid_heading":
+                issues.append(Issue(
+                    page=i, 
+                    code="INVALID_HEADING_LEVEL", 
+                    message=f"รูปแบบผิด: ห้ามใช้หัวข้อย่อยเกิน 3 ระดับ ({prefix_str}) ให้เปลี่ยนไปใช้รายการย่อย 1) แทน", 
+                    bbox=line["bbox"], 
+                    severity="error"
+                ))
+                continue # ข้ามบรรทัดนี้ไปเลย ไม่ต้องเอาไปเช็ค Sequence หรือ Indent ต่อ
 
             # Sequence Check
             if checks.get("check_section_seq") and is_main_content:
                 if b_type in ["section", "sub_section", "sub_sub_section"]:
+                    
+                    # [เพิ่มตรงนี้] ถ้าข้อความเป็นสมการ หรือสั้นเกินไป (เช่น "2)") ให้ข้ามไป ไม่ต้องนับลำดับ
+                    if is_formula(line_text) or len(line_text.strip()) <= 3:
+                        continue
                     
                     seq_error = check_section_sequence(global_state, current_chapter, b_type, prefix_str, line_text, ignored_units)
                     
@@ -165,6 +219,9 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
 
             if checks.get("check_font"):
                 issues.extend(check_font(i, spans, font_cfg))
+                
+            # <--- [เพิ่มบรรทัดนี้] อัปเดตพิกัดบรรทัดก่อนหน้า
+            prev_l_bbox_for_seq = l_bbox
 
         if checks.get("check_margin") and content_lines_for_margin:
             issues.extend(check_margin_rules(i, content_lines_for_margin, margin_cfg, w, h))
