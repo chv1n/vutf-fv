@@ -12,7 +12,7 @@ def get_prefix_and_text_coords(line_raw: dict):
         if match:
             prefix_str = match.group(1)
             
-            # --- [เพิ่มส่วนนี้] บังคับว่า prefix ต้องอยู่หน้าสุดของข้อความ ---
+            # --- บังคับว่า prefix ต้องอยู่หน้าสุดของข้อความ ---
             if not full_text.startswith(prefix_str):
                 continue  # ถ้าไม่ใช่คำแรกของบรรทัด ให้ข้ามไปเลย ถือว่าเป็นแค่ประโยคธรรมดา
 

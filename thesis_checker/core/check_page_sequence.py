@@ -55,12 +55,6 @@ def check_page_sequence(
 ) -> tuple:
     """
     ตรวจสอบลำดับเลขหน้าของหน้าปัจจุบัน
-
-    Returns:
-        (issues, expected_page_str_after, page_num_str)
-        - issues              : รายการปัญหาที่พบ
-        - expected_page_str_after : ค่า expected_page_str หลังอัปเดต (ส่งต่อหน้าถัดไป)
-        - page_num_str        : เลขหน้าที่อ่านได้จาก header
     """
     w = page.rect.width
     issues: List[Issue] = []

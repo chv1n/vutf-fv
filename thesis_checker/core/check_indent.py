@@ -29,9 +29,9 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
 
     prev_text = state.prev_line_text
     prev_b_type = "paragraph"        
-    prev_l_bbox = None  # <--- [เพิ่มบรรทัดนี้] สร้างตัวแปรเก็บพิกัดบรรทัดก่อนหน้า
-    active_caption_indent = None  # <--- [เพิ่มบรรทัดนี้] สร้างตัวแปรเก็บระยะเยื้องของชื่อรูป/ตาราง
-    # --- [เพิ่มตัวแปรนี้] สร้างโดมป้องกัน Error ให้ดงสมการ ---
+    prev_l_bbox = None  # เก็บพิกัดบรรทัดก่อนหน้า
+    active_caption_indent = None  # เก็บระยะเยื้องของชื่อรูป/ตาราง
+    # กัน Error ให้สมการ
     var_block_active = False
 
     for line in all_lines:
@@ -40,7 +40,7 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
         if not line_text: 
             continue
         
-        # --- [เพิ่มบล็อกนี้] ค้นหาพิกัด X ของตัวอักษรแรกที่มองเห็น (ข้าม Space/Tab) ---
+        # ค้นหาพิกัด X ของตัวอักษรแรกที่มองเห็น (ข้าม Space/Tab)
         actual_x0 = line["bbox"][0]
         for span in line.get("spans", []):
             found_visible_char = False
@@ -61,18 +61,17 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
         prefix_x0 = result["prefix_x0"]
         text_x0 = result["text_x0"]
 
-        # ถ้า prefix_str มีค่า แต่ line_text ดันเท่ากับ prefix_str พอดี แสดงว่าบรรทัดนั้นมีแต่เลขหัวข้อ ไม่มีเนื้อหา
-        # กรณีนี้ให้ข้ามไปเลย ไม่ต้องตรวจ
+        # ถ้า prefix_str มีค่า แต่ line_text ดันเท่ากับ prefix_str พอดี แสดงว่าบรรทัดนั้นมีแต่เลขหัวข้อ ไม่มีเนื้อหา ข้ามการตรวจ
         if prefix_str and line_text == prefix_str:
             continue
     
-        # --- [แก้ไขบรรทัดนี้] เปลี่ยนมาคำนวณระยะเยื้องจาก actual_x0 แทน ---
+        # เปลี่ยนมาคำนวณระยะเยื้องจาก actual_x0
         dist_mm = to_mm(actual_x0 - m_left)
 
         # if b_type == "paragraph" and dist_mm > 30.0: 
         #     continue
         
-        # --- [ตะแกรงร่อนหัวข้อปลอม V5] ---
+        # กรองหัวข้อปลอม (Fake Heading) ที่เกิดจากการพิมพ์ย่อหน้าติดขอบซ้ายมากเกินไป จนระบบเข้าใจผิดว่าเป็นหัวข้อ -----
         text_dist_mm = to_mm(text_x0 - m_left) if text_x0 is not None else dist_mm
         is_fake = False
         l_bbox = fitz.Rect(line["bbox"])
@@ -95,13 +94,13 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
         if is_fake:
             b_type = "paragraph"
             prefix_str = ""
-        # -----------------------------------------------
+        # ----------------------------------------------------------------------------------------- 
         
         # ถ้าอยู่ใน Visual Area ไม่ต้องตรวจ
         if is_inside_visual(line["bbox"], visual_rects): 
             continue
         
-        # === [อัปเกรด V10: โดมป้องกันสมการที่แม่นยำ ไม่กลืนย่อหน้าปกติ] ===
+        # กันสมการโดยไม่กลืนย่อหน้าปกติ =================================================================================
         gap_y0_var = (l_bbox.y0 - prev_l_bbox.y0) if prev_l_bbox else 100.0
         
         if gap_y0_var > 45.0 or b_type != "paragraph":
@@ -123,7 +122,6 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                 idx_kue = line_text.find("คือ")
                 idx_eq = line_text.find("=")
                 
-                # --- [แก้ไขจุดนี้] ---
                 # บังคับว่า "คือ" หรือ "=" ต้องอยู่ภายใน 15 ตัวอักษรแรก ถึงจะเป็นตัวแปรสมการ
                 # ป้องกันประโยคยาวๆ ที่มีคำว่า "คือ" แทรกกลาง
                 if (0 < idx_kue <= 15) or (0 < idx_eq <= 15):
@@ -136,9 +134,9 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
             prev_b_type = "paragraph"
             prev_l_bbox = l_bbox
             continue
-        # ==========================================================
+        # =========================================================================================================
 
-        # --- [อัปเกรด V2: ตรวจระยะบรรทัด 2 ของชื่อรูป/ตาราง + ดักการลืมเว้นบรรทัด] ---
+        # ตรวจระยะบรรทัด 2 ของชื่อรูป/ตาราง + ดักการลืมเว้นบรรทัด
         if prev_text.startswith("รูปที่") or prev_text.startswith("ตารางที่"):
             gap_y0 = (l_bbox.y0 - prev_l_bbox.y0) if prev_l_bbox else 100.0
             
@@ -174,7 +172,7 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                     if abs(dist_mm - expected_indent) > tolerance:
                         msg = f"ระยะเยื้องผิด (paragraph): เริ่มที่ {dist_mm:.1f}mm (เป้าหมาย {expected_indent:.1f}mm)"
                         
-                        # --- [เพิ่มส่วนนี้] สร้างกรอบเล็กเฉพาะ "ช่องว่างที่ผิด" ---
+                        # สร้างกรอบเล็กเฉพาะ "ช่องว่างที่ผิด"
                         actual_x0 = l_bbox.x0
                         target_x0 = m_left + (expected_indent * 2.83465) # แปลงเป้าหมาย (mm) กลับเป็นจุด (pt)
                         
@@ -183,10 +181,8 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                         # ถ้าจุดที่พิมพ์กับเป้าหมายอยู่ใกล้กันมาก (กรอบจะบางไป) ให้บังคับกว้างอย่างน้อย 10pt
                         if box_x1 - box_x0 < 10.0: box_x1 = box_x0 + 10.0 
                         
-                        custom_bbox = [box_x0, l_bbox.y0, box_x1, l_bbox.y1]
-                        # ------------------------------------------------
-                        
-                        # สังเกตว่าเปลี่ยนจาก line["bbox"] เป็น custom_bbox
+                        custom_bbox = [box_x0, l_bbox.y0, box_x1, l_bbox.y1]    
+        
                         found_issues.append(Issue(page=page_num, code="INDENT_ERR", message=msg, bbox=custom_bbox))
                     # =================================================
 
@@ -194,12 +190,12 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                     continue
         # -------------------------------------------------------------
         
-        # --- ให้ระบบจำพิกัดข้อความของบรรทัดแรกเอาไว้ใช้ ---
+        # จำพิกัดข้อความของบรรทัดแรกเอาไว้ใช้ 
         if b_type == "image_table" or line_text.startswith("รูปที่") or line_text.startswith("ตารางที่"):
             active_caption_indent = text_dist_mm
         # -------------------------------------------------------------
 
-        # ถ้า suffix หลัง prefix ขึ้นต้นด้วย unit → เป็นค่าวัด ไม่ใช่หัวข้อ
+        # ถ้า suffix หลัง prefix ขึ้นต้นด้วย unit 
         if ignored_units and prefix_str and b_type == "section":
             suffix_text = line_text.replace(prefix_str, "", 1).strip()
             if any(suffix_text.startswith(u) or suffix_text == u for u in ignored_units):
@@ -214,7 +210,7 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
             target_num = rules.get("main_heading_num", 0.0)
             target_text = rules.get("main_heading_text", 10.0)
             
-            # [เพิ่มบรรทัดนี้] จำระยะข้อความของหัวข้อหลัก (เช่น 1.1) ไว้ให้ลูกใช้
+            # เก็บระยะข้อความของหัวข้อหลัก (เช่น 1.1) ไว้ใช้
             state.last_heading_text_indent = target_text
 
             # ตรวจสอบตัวหนา
@@ -243,7 +239,7 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
             else:
                 target_text = rules.get("sub_heading_text_1", 20.0)
                 
-            # [เพิ่มบรรทัดนี้] จำระยะข้อความของหัวข้อรอง (เช่น 1.1.1) ไว้ให้ลูกใช้
+            # เก็บระยะข้อความของหัวข้อรอง (เช่น 1.1.1) ไว้ใช้
             state.last_heading_text_indent = target_text
             
         elif b_type == "sub_sub_section":
@@ -306,7 +302,6 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                         # ถ้าระยะไม่ตรงกับตัวเลือกไหนเลย ให้บังคับแสดง Error ไปที่เป้าหมายของข้อย่อยล่าสุด
                         if closest_target is None:
                             heading_text_target = getattr(state, "last_text_target", def_list)
-                    # -----------------------------------------
 
             if heading_text_target is not None:
                 # บังคับ paragraph แรกใต้หัวข้อให้ตรงกับเป้าหมายที่คำนวณมา
@@ -344,7 +339,7 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
         if target_num is not None:
             if abs(dist_mm - target_num) > tolerance:
                 msg = f"ระยะเยื้องผิด ({b_type}): เริ่มที่ {dist_mm:.1f}mm (เป้าหมาย {target_num}mm)"
-                # --- [แก้ไข] สร้างกรอบเล็กๆ ระหว่างจุดที่พิมพ์จริงกับจุดที่เป็นเป้าหมาย ---
+                # สร้างกรอบเล็กๆ ระหว่างจุดที่พิมพ์จริงกับจุดที่เป็นเป้าหมาย 
                 target_x0_pt = m_left + (target_num * 2.83465)
                 box_x0 = min(actual_x0, target_x0_pt)
                 box_x1 = max(actual_x0, target_x0_pt)
@@ -359,7 +354,7 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
             text_dist_mm = to_mm(text_x0 - m_left)
             if abs(text_dist_mm - target_text) > tolerance:
                 msg = f"ข้อความหลัง {prefix_str} ผิดตำแหน่ง: เริ่มที่ {text_dist_mm:.1f}mm (เป้าหมาย {target_text}mm)"
-                # --- [แก้ไข] สร้างกรอบเล็กๆ เจาะจงเฉพาะจุดที่เว้นวรรคผิด ---
+                # สร้างกรอบเล็กๆ เจาะจงเฉพาะจุดที่เว้นวรรคผิด
                 target_x0_pt = m_left + (target_text * 2.83465)
                 box_x0 = min(text_x0, target_x0_pt)
                 box_x1 = max(text_x0, target_x0_pt)
@@ -369,13 +364,12 @@ def check_page_indentation(state: ThesisState, page, page_num: int, m_left: floa
                 custom_bbox = [box_x0, line["bbox"][1], box_x1, line["bbox"][3]]
                 found_issues.append(Issue(page=page_num, code="TEXT_ALIGN_ERR", message=msg, bbox=custom_bbox))
                 
-        # === [เพิ่ม 2 บรรทัดนี้] สร้างสมองก้อนใหม่ จำระยะข้อความล่าสุดไว้ใช้กับย่อหน้า ===
+        # จำระยะข้อความล่าสุดไว้ใช้กับย่อหน้า
         if target_text is not None:
             state.last_text_target = target_text
-        # =========================================================
 
         prev_text = line_text     # เดิน local prev tracking ภายใน loop นี้
         prev_b_type = b_type      # เก็บ b_type ของบรรทัดนี้ไว้สำหรับบรรทัดถัดไป
-        prev_l_bbox = l_bbox      # <--- [เพิ่มบรรทัดนี้] เก็บพิกัดไว้ให้ลูปรอบถัดไปเช็คต่อ
+        prev_l_bbox = l_bbox      # เก็บพิกัดไว้ให้ลูปรอบถัดไปเช็คต่อ
 
     return found_issues

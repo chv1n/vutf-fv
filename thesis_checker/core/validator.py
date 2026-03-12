@@ -7,7 +7,7 @@ from typing import List
 from models import Issue, ThesisState
 from config import load_config, DEBUG_LINE, NO_PAGE_SECTIONS
 from core.check_page_sequence import check_page_sequence
-from utils import mm
+from utils import mm, to_mm
 
 # Import Modular Checks
 from core.check_margin import check_margin_rules
@@ -113,7 +113,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             issues.extend(check_page_indentation(global_state, page, i, m_left, rules, visual_rects, ignored_units))
 
         content_lines_for_margin = []
-        prev_l_bbox_for_seq = None  # <--- [เพิ่มบรรทัดนี้] เก็บพิกัดบรรทัดก่อนหน้า
+        prev_l_bbox_for_seq = None  # เก็บพิกัดบรรทัดก่อนหน้า
 
         for line in all_lines:
             l_bbox = fitz.Rect(line["bbox"])
@@ -142,15 +142,13 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             b_type = prefix_data["type"]
             prefix_str = prefix_data["prefix"]
             
-            # --- [ต้องมี 4 บรรทัดนี้ก่อนเข้าตะแกรงร่อนครับ] ---
-            from utils import to_mm  # ให้แน่ใจว่า import to_mm มาแล้ว
             prefix_x0 = prefix_data.get("prefix_x0")
             text_x0 = prefix_data.get("text_x0")
             
             dist_mm = to_mm(prefix_x0 - m_left) if prefix_x0 is not None else None
             text_dist_mm = to_mm(text_x0 - m_left) if text_x0 is not None else None
 
-            # --- [ตะแกรงร่อนหัวข้อปลอม V5] ---
+            # ---------------------- กรองหัวข้อปลอม ----------------------
             if dist_mm is not None and text_dist_mm is not None:
                 is_fake = False
                 
@@ -180,7 +178,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
                     prefix_str = ""
             # --------------------------------------------------------
             
-            # [เพิ่มบล็อกนี้] ถ้าเจอหัวข้อที่ลึกเกิน 3 ระดับ แจ้ง Error ทันที
+            # ถ้าเจอหัวข้อที่ลึกเกิน 3 ระดับ แจ้ง Error ทันที
             if b_type == "invalid_heading":
                 issues.append(Issue(
                     page=i, 
@@ -195,7 +193,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             if checks.get("check_section_seq") and is_main_content:
                 if b_type in ["section", "sub_section", "sub_sub_section"]:
                     
-                    # [เพิ่มตรงนี้] ถ้าข้อความเป็นสมการ หรือสั้นเกินไป (เช่น "2)") ให้ข้ามไป ไม่ต้องนับลำดับ
+                    # ถ้าข้อความเป็นสมการ หรือสั้นเกินไป (เช่น "2)") ให้ข้ามไป ไม่ต้องนับลำดับ
                     if is_formula(line_text) or len(line_text.strip()) <= 3:
                         continue
                     
@@ -220,7 +218,7 @@ def run_all_checks(pdf_path: str) -> List[Issue]:
             if checks.get("check_font"):
                 issues.extend(check_font(i, spans, font_cfg))
                 
-            # <--- [เพิ่มบรรทัดนี้] อัปเดตพิกัดบรรทัดก่อนหน้า
+            # อัปเดตพิกัดบรรทัดก่อนหน้า
             prev_l_bbox_for_seq = l_bbox
 
         if checks.get("check_margin") and content_lines_for_margin:

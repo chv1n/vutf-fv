@@ -123,7 +123,6 @@ def check_visual_spacing(
     for v_rect in visual_rects:
         # ข้ามตาราง/รูปที่อยู่บนสุดของหน้า
 
-        
         closest_text_bottom = 0
         closest_text_top = float('inf')  
         
@@ -137,7 +136,6 @@ def check_visual_spacing(
             b_y0 = b["y0"]
             b_y1 = b["y1"] 
             b_text = b["text"].strip()
-            
                  
             # หาข้อความที่อยู่เหนือพื้นที่ Visual นี้ที่ใกล้ที่สุด
             if b_y1 < (v_rect.y0 + 5): 
