@@ -1,6 +1,7 @@
+import fitz
 from typing import List, Dict, Any
 from models import Issue
-from utils import mm
+from utils import to_mm
 
 def check_margin_rules(
     page_num: int, 
@@ -9,96 +10,70 @@ def check_margin_rules(
     page_width: float, 
     page_height: float
 ) -> List[Issue]:
-    """
-    ตรวจสอบระยะขอบแบบ 'ทีละบรรทัด/ทีละก้อน (Line-by-Line)'
-    เพื่อแยกแยะว่าบรรทัดไหนล้นจริงๆ และหลบปัญหา Space ล่องหนท้ายบรรทัด
-    """
     issues = []
     
-    m_top = mm(margin_cfg.get("top", 25.4))
-    m_bottom = mm(margin_cfg.get("bottom", 25.4))
-    m_left = mm(margin_cfg.get("left", 38.1))
-    m_right = mm(margin_cfg.get("right", 25.4))
+    target_top = margin_cfg.get("top", 25.4)
+    target_bottom = margin_cfg.get("bottom", 25.4)
+    target_left = margin_cfg.get("left", 38.1)
+    target_right = margin_cfg.get("right", 25.4)
     
-    TOLERANCE = 3.0 
-    limit_right = page_width - m_right
-    limit_bottom = page_height - m_bottom
+    TOLERANCE = 2.0
 
     for element in page_elements:
-        bbox = element.get("bbox")
-        spans = element.get("spans", [])
-        
-        if not bbox:
-            continue
-            
-        real_x0, real_y0, real_x1, real_y1 = bbox
-        
-        has_text = False
-        ends_with_space = False 
-        
-        if spans:
-            valid_left_edges = []
-            valid_right_edges = []
-            valid_top_edges = []
-            valid_bottom_edges = []
-            
-            last_valid_text = ""
-            
-            for span in spans:
-                text = span.get("text", "")
-                if not text.strip(): 
-                    continue
-                
-                has_text = True
-                last_valid_text = text 
-                
-                span_bbox = span.get("bbox")
-                if span_bbox:
-                    valid_left_edges.append(span_bbox[0])
-                    valid_right_edges.append(span_bbox[2])
-                    valid_top_edges.append(span_bbox[1])
-                    valid_bottom_edges.append(span_bbox[3])
-            
-            if has_text:
-                real_x0 = min(valid_left_edges)
-                real_x1 = max(valid_right_edges)
-                real_y0 = min(valid_top_edges)
-                real_y1 = max(valid_bottom_edges)
-                
-                if last_valid_text.endswith(" ") or last_valid_text.endswith("\u00A0"):
-                    ends_with_space = True
-                    
-        if not has_text:
-            continue
-        
-        current_right_tolerance = TOLERANCE + 6.0 if ends_with_space else TOLERANCE
+        all_chars = []
+        for span in element.get("spans", []):
+            if "chars" in span: all_chars.extend(span["chars"])
 
-        if real_x0 < (m_left - TOLERANCE):
+        if not all_chars: continue
+
+        non_space_indices = [i for i, char in enumerate(all_chars) if char.get("c", "").strip()]
+        if not non_space_indices: continue
+
+        real_rect = fitz.Rect()
+        for i in range(non_space_indices[0], non_space_indices[-1] + 1):
+            real_rect.include_rect(all_chars[i]["bbox"])
+
+        curr_x0 = to_mm(real_rect.x0)
+        curr_y0 = to_mm(real_rect.y0)
+        curr_x1 = to_mm(real_rect.x1)
+        curr_y1 = to_mm(real_rect.y1)
+        
+        # แปลงขนาดหน้ากระดาษเป็น mm เพื่อหาขอบขวา/ล่าง
+        page_w_mm = to_mm(page_width)
+        page_h_mm = to_mm(page_height)
+
+        # ตรวจขอบซ้าย
+        if curr_x0 < (target_left - TOLERANCE):
             issues.append(Issue(
                 page=page_num, code="MARGIN_LEFT", severity="error", 
-                message=f"เนื้อหาล้นขอบซ้าย: ล้ำเข้าไปที่ {real_x0:.1f} pt (ขอบอยู่ที่ {m_left:.1f} pt)", 
-                bbox=[real_x0, real_y0, m_left, real_y1] 
+                message=f"เนื้อหาล้นขอบซ้าย: อยู่ที่ {curr_x0:.1f} mm (ขอบคือ {target_left:.1f} mm)", 
+                bbox=list(real_rect) 
             ))
 
-        if real_x1 > (limit_right + current_right_tolerance):
+        # ตรวจขอบขวา
+        limit_right = page_w_mm - target_right
+        if curr_x1 > (limit_right + TOLERANCE):
             issues.append(Issue(
                 page=page_num, code="MARGIN_RIGHT", severity="error", 
-                message=f"เนื้อหาล้นขอบขวา: ล้ำไปที่ {real_x1:.1f} pt (เกินมา {real_x1 - limit_right:.1f} pt)", 
-                bbox=[limit_right, real_y0, real_x1, real_y1] 
+                message=f"เนื้อหาล้นขอบขวา: อยู่ที่ {curr_x1:.1f} mm (ขอบคือ {limit_right:.1f} mm)", 
+                bbox=list(real_rect)
             ))
 
-        if real_y0 < (m_top - TOLERANCE):
+        # ตรวจขอบบน
+        if curr_y0 < (target_top - TOLERANCE):
             issues.append(Issue(
                 page=page_num, code="MARGIN_TOP", severity="error", 
-                message=f"เนื้อหาล้นขอบบน: ล้ำเข้าไปที่ {real_y0:.1f} pt (ขอบอยู่ที่ {m_top:.1f} pt)", 
-                bbox=[real_x0, real_y0, real_x1, m_top] 
+                message=f"เนื้อหาล้นขอบบน: อยู่ที่ {curr_y0:.1f} mm (ขอบคือ {target_top:.1f} mm)", 
+                bbox=list(real_rect)
             ))
 
-        if real_y1 > (limit_bottom + TOLERANCE):
+        # ตรวจขอบล่าง
+        limit_bottom = page_h_mm - target_bottom
+        if curr_y1 > (limit_bottom + TOLERANCE):
             issues.append(Issue(
                 page=page_num, code="MARGIN_BOTTOM", severity="error", 
-                message=f"เนื้อหาล้นขอบล่าง: ล้ำไปที่ {real_y1:.1f} pt (เกินมา {real_y1 - limit_bottom:.1f} pt)", 
-                bbox=[real_x0, limit_bottom, real_x1, real_y1] 
+                message=f"เนื้อหาล้นขอบล่าง: อยู่ที่ {curr_y1:.1f} mm (ขอบคือ {limit_bottom:.1f} mm)", 
+                bbox=list(real_rect)
             ))
 
     return issues

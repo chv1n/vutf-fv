@@ -37,8 +37,8 @@ class ResultProducer:
             host=config.RABBITMQ_HOST,
             port=config.RABBITMQ_PORT,
             credentials=credentials,
-            heartbeat=600,  # Keep connection alive
-            blocked_connection_timeout=300,
+            heartbeat=1800,  # Keep connection alive
+            blocked_connection_timeout=900,
         )
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
@@ -72,7 +72,8 @@ class ResultProducer:
         result_csv_url: str = None,
         result_file_name: str = None,
         result_file_size: int = None,
-        error_message: str = None
+        error_message: str = None,
+        start_time: str = None
     ):
         """
         Send verification result to the result queue
@@ -99,6 +100,7 @@ class ResultProducer:
             'result_file_size': result_file_size,
             'error_message': error_message,
             'completed_at': datetime.utcnow().isoformat() + 'Z',
+            'start_time': start_time,
         }
         
         try:
