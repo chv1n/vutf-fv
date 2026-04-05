@@ -24,7 +24,6 @@ def generate_csv(issues, summary=None):
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # เพิ่ม Header
     writer.writerow(["Page", "Code", "Severity", "Message", "BBox"])
     
     for i in issues:
@@ -37,9 +36,8 @@ def generate_csv(issues, summary=None):
         
     return output.getvalue()
 
-# ฟังก์ชันช่วยบันทึก CSV ลงเครื่อง
+# บันทึก CSV ลงเครื่อง
 def save_csv_to_disk(csv_content: str, original_filename: str, prefix: str = "report"):
-    # ตัดนามสกุลเดิมออก (เช่น .pdf) แล้วเติม .csv
     base_name = os.path.splitext(original_filename)[0]
     csv_filename = f"{prefix}_{base_name}.csv"
     csv_path = os.path.join(OUTPUT_DIR, csv_filename)
@@ -58,13 +56,8 @@ async def check_pdf(file: UploadFile = File(...)):
     
     try:
         print("Receiving file:", file.filename)
-        # 1. Save ไฟล์ Temp
         with open(temp_in, "wb") as f: f.write(await file.read())
-        
-        # 2. รันการตรวจสอบ
         issues = run_all_checks(temp_in)
-        
-        # 3. เช็ค Critical Error
         has_critical_error = any(i.code == "PAPER_SIZE_ERR" for i in issues)
     
         if not has_critical_error and ANNOTATE:
@@ -73,14 +66,10 @@ async def check_pdf(file: UploadFile = File(...)):
         else:
             print(f"Skipping annotation for {file.filename} due to critical paper size error.")
             
-        # 4. สร้าง CSV Data
         csv_data = generate_csv(issues)
         
-        # 5. บันทึกไฟล์ CSV ลงเครื่อง Server
-        
         save_csv_to_disk(csv_data, file.filename, prefix="report_full")
-        
-        # 6. ส่งกลับ Client
+
         return StreamingResponse(
             io.StringIO(csv_data), 
             media_type="text/csv", 

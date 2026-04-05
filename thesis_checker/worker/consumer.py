@@ -43,6 +43,8 @@ class JobConsumer:
             host=config.RABBITMQ_HOST,
             port=config.RABBITMQ_PORT,
             credentials=credentials,
+            heartbeat=1800, 
+            blocked_connection_timeout=900,
         )
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
@@ -177,6 +179,7 @@ class JobConsumer:
             job = json.loads(body)
             job_id = job.get('job_id', 'unknown')
             submission_id = job.get('submission_id')
+            start_time = job.get('start_time')
             
             print(f"[Consumer] Received job: {job_id}")
             
@@ -193,6 +196,7 @@ class JobConsumer:
                 result_file_name=result_name,
                 result_file_size=file_size,
                 error_message=error,
+                start_time=start_time
             )
             
             # Acknowledge message

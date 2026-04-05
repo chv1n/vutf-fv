@@ -6,73 +6,31 @@ OUTPUT_DIR = "output_files"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def load_config():
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Error loading JSON: {e}")
-            
-    print("Warning: config.json not found or error. Using default config.")
-    
-    return {
-        "margin_mm": {"top": 38.1, "bottom": 25.4, "left": 38.1, "right": 25.4},
-        
-        "font": {
-            "name": "sarabun",
-            "size": 16.0,
-            "tolerance": 1.0
-        },
-        
-        "indent_rules": {
-            "tolerance": 2.0,
-            
-            "para_indent": 10.0, 
-            "para_min_detect": 5.0,
-            "para_max_detect": 35.0,
-
-            "main_heading_num": 0.0,
-            "main_heading_text": 10.0,
-
-            "sub_heading_num": 10.0,
-            "sub_heading_text_1": 20.0,
-            "sub_heading_text_2": 22.5,
-
-            "list_item_num": 15.0,
-            "list_item_text_1": 25.0,
-            "list_item_text_2": 27.6,
-
-            "bullet_point": 25.0,
-            "bullet_text": 30.0
-        },
-        
-        "check_list": {
-            "check_font": True, 
-            "check_margin": True, 
-            "check_section_seq": True,
-            "check_page_seq": True,     
-            "check_page_seq": True,     
-            "check_indentation": True, 
-            "check_spacing": False,
-            "check_paper_size": False
-        },
-        
-        "ignored_units": [
-            "m", "cm", "mm", "km", "nm",
-            "kg", "g", "mg",
-            "A", "mA", "kA",
-            "V", "kV", "mV",
-            "W", "kW", "MW",
-            "Hz", "kHz", "MHz", "GHz",
-            "J", "MJ", "kJ",
-            "°C", "K", "F",
-            "N", "kN",
-            "Pa", "kPa", "MPa",
-            "bar", "atm",
-            "dB", "rpm"
-        ]
-    }
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 DEFAULT_CONFIG = load_config() 
+
+ANNOTATE = True
+
 DEBUG = True
+DEBUG_LINE = False
+
 THAI_SEQ = "กขคงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ"
+PATTERNS = {
+    "chapter": r"^(บทที่\s+\d+)",
+    "image_table": r"^((?:รูปที่|ตารางที่)\s*[0-9๐-๙]+(?:\.[0-9๐-๙]+)*)",
+    "invalid_heading": r"^(\d+\.\d+\.\d+\.\d+(?:\.\d+)*)(\s|(?=[^\s])|$)", 
+    "sub_section": r"^(\d+\.\d+\.\d+)(?!\.)(\s|(?=[^\s])|$)",
+    "section": r"^(\d+\.\d+)(?!\.)(\s|(?=[^\s])|$)",
+    "sub_sub_section": r"^\s*((\d+|[๑-๙][๐-๙]*)\s*\))(\s|$)",
+    "bullet": r"^([•\u2022])",
+    "dash": r"^([-–—])"
+}
+WARNING_FONTS = ["cordia", "angsana", "browallia", "upc"]
+IGNORED_SYMBOLS = ["•", "●", "▪", "-", "–", "—", "_"]
+MATH_FONTS = ["math", "symbol", "cambria", "mt", "wingdings", "times"]
+NUMERIC_PATTERN = r"^[0-9\[\]\(\)\.,\-\+\*/=]+$"
+LATIN_VAR_PATTERN = r"^[A-Za-z0-9\.\-\s]{1,5}$"
+GREEK_SYMBOLS = ["∑", "Σ", "µ", "β", "Ω", "π", "∆", "ε", "σ", "τ", "φ", "θ", "ρ", "χ", "ψ", "ω", "κ", "λ", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "π", "τ", "υ", "φ", "χ", "ψ", "ω", "α"]
+NO_PAGE_SECTIONS = {1, 2, 3, 4, 5, 7, 8, 9, 10, 11}
