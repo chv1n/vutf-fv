@@ -33,8 +33,8 @@ flowchart TB
   O --> P(End)
   G --> Q[Error/Exception]
   Q --> R[Save error to DB & nack/requeue or log]
-  R -
-
+  R --> P
+```
 ## Repository structure (important files)
 - `main.py` — worker entry point (starts the RabbitMQ consumer)
 - `worker/config.py` — environment configuration loader (`.env`)
