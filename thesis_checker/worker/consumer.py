@@ -13,7 +13,7 @@ from typing import List
 
 from .config import config
 from .s3_client import s3_client
-from .producer import result_producer
+from .database import DatabaseClient
 
 
 def generate_csv(issues: List[Issue]) -> str:
@@ -186,18 +186,23 @@ class JobConsumer:
             # Process the job
             success, pdf_url, csv_url, result_name, file_size, error = self.process_job(job)
             
-            # Send result back to API
-            result_producer.send_result(
-                job_id=job_id,
-                submission_id=submission_id,
-                status='completed' if success else 'failed',
-                result_file_url=pdf_url,
-                result_csv_url=csv_url,
-                result_file_name=result_name,
-                result_file_size=file_size,
-                error_message=error,
-                start_time=start_time
-            )
+            # Save result directly to database
+            with DatabaseClient() as db_client:
+                db_success = db_client.save_verification_result(
+                    submission_id=submission_id,
+                    status='completed' if success else 'failed',
+                    file_url=pdf_url or '',
+                    csv_url=csv_url,
+                    file_name=result_name or '',
+                    file_size=file_size or 0,
+                    error_message=error,
+                    start_time=start_time
+                )
+                
+                if db_success:
+                    print(f"[Consumer] Job {job_id} result saved to database successfully")
+                else:
+                    print(f"[Consumer] Job {job_id} failed to save to database")
             
             # Acknowledge message
             channel.basic_ack(delivery_tag=method.delivery_tag)
