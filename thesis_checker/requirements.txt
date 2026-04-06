@@ -1,0 +1,5 @@
+# Python dependencies for thesis_checker
+pika>=1.3.0
+boto3>=1.28.0
+python-dotenv>=1.0.0
+psycopg2-binary>=2.9.0

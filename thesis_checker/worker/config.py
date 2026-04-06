@@ -28,6 +28,18 @@ class WorkerConfig:
     S3_BUCKET = os.getenv('S3_BUCKET', '')
     S3_ENDPOINT = os.getenv('S3_ENDPOINT', 'https://s3.ap-southeast-7.amazonaws.com')
     
+    # PostgreSQL Database
+    DATABASE_HOST = os.getenv('DATABASE_HOST', 'localhost')
+    DATABASE_PORT = int(os.getenv('DATABASE_PORT', 5432))
+    DATABASE_NAME = os.getenv('DATABASE_NAME', 'vutf_db')
+    DATABASE_USER = os.getenv('DATABASE_USER', 'vutf')
+    DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', 'vutf')
+    
+    @classmethod
+    def get_database_url(cls) -> str:
+        """Build PostgreSQL connection URL"""
+        return f"postgresql://{cls.DATABASE_USER}:{cls.DATABASE_PASSWORD}@{cls.DATABASE_HOST}:{cls.DATABASE_PORT}/{cls.DATABASE_NAME}"
+    
     @classmethod
     def get_rabbitmq_url(cls) -> str:
         """Build RabbitMQ connection URL"""
@@ -41,6 +53,9 @@ class WorkerConfig:
             cls.AWS_ACCESS_KEY_ID,
             cls.AWS_SECRET_ACCESS_KEY,
             cls.S3_BUCKET,
+            cls.DATABASE_HOST,
+            cls.DATABASE_USER,
+            cls.DATABASE_PASSWORD,
         ]
         return all(required)
 
