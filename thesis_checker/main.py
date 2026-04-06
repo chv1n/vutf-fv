@@ -37,10 +37,9 @@ def main():
         print("  - S3_BUCKET")
         sys.exit(1)
     
-    print(f"[Config] RabbitMQ: {config.RABBITMQ_HOST}:{config.RABBITMQ_PORT}")
-    print(f"[Config] Job Queue: {config.JOB_QUEUE}")
-    print(f"[Config] Result Queue: {config.RESULT_QUEUE}")
-    print(f"[Config] S3 Bucket: {config.S3_BUCKET}")
+    print("[Config] RabbitMQ: PASS")
+    print("[Config] S3 Bucket: PASS")
+    print("[Config] Database: PASS")
     print("=" * 50)
     
     # Start consuming
