@@ -1,4 +1,4 @@
-# VUTF Thesis PDF Verification Worker
+# Verification System for Undergraduate Thesis Format : PDF Format Validator
 
 A RabbitMQ background worker that validates thesis PDF files, produces an annotated PDF and a CSV report, uploads results to S3 or Cloud Storage, and records outcomes in PostgreSQL.
 
